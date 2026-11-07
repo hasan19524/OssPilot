@@ -1,0 +1,50 @@
+{
+  "name": "osspilot",
+  "version": "0.1.0",
+  "description": "OSSPilot - AI-powered open source contribution platform (terminal)",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "osspilot": "./src/index.ts"
+  },
+  "engines": {
+    "bun": ">=1.4.0"
+  },
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "tui": "bun run src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src tests",
+    "format": "biome format --write src tests",
+    "db:generate": "drizzle-kit generate",
+    "doctor": "bun run src/index.ts doctor",
+    "build": "bun build src/index.ts --compile --outfile dist/osspilot",
+    "build:js": "bun build src/index.ts --outdir dist"
+  },
+  "dependencies": {
+    "@octokit/plugin-retry": "^8.1.1",
+    "@octokit/plugin-throttling": "^11.0.5",
+    "@opencode-ai/sdk": "^1.19.5",
+    "@opentui/core": "0.8.3",
+    "@opentui/react": "0.8.3",
+    "better-sqlite3": "^13.0.3",
+    "commander": "^15.1.0",
+    "drizzle-orm": "^0.45.4",
+    "octokit": "^5.0.5",
+    "openai": "^7.53.0",
+    "react": "^19.2",
+    "zod": "^4.6.7",
+    "zustand": "^5.1.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.6",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "drizzle-kit": "^0.31.11",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}
