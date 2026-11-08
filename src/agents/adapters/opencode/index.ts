@@ -204,6 +204,18 @@ export class OpenCodeAdapter implements AgentAdapter {
     return session.status
   }
 
+  /** Kill all spawned OpenCode server processes. Called on shutdown. */
+  shutdown(): void {
+    for (const [, server] of this.servers) {
+      try {
+        server.process.kill("SIGTERM")
+      } catch {
+        // Process may already be dead
+      }
+    }
+    this.servers.clear()
+  }
+
   private async ensureServer(worktreePath: string): Promise<RunningServer> {
     const existing = this.servers.get(worktreePath)
     if (existing) return existing
@@ -219,7 +231,12 @@ export class OpenCodeAdapter implements AgentAdapter {
     child.stdout?.on("data", (chunk: Buffer) => {
       const text = chunk.toString()
       const match = text.match(/server password\s+(\S+)/)
-      if (match?.[1]) password = match[1]
+      if (match?.[1]) {
+        password = match[1]
+        // Stop capturing stdout after password extraction to avoid leaking it
+        child.stdout?.removeAllListeners("data")
+        child.stdout?.destroy()
+      }
     })
 
     const baseUrl = `http://127.0.0.1:${port}/api`

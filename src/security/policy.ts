@@ -17,9 +17,47 @@ export interface CommandPolicy {
 }
 
 export const DEFAULT_COMMAND_POLICY: CommandPolicy = {
-  allowed: ["git status", "git diff", "git log", "git branch", "npm test", "bun test", "vitest"],
-  requiresApproval: ["git commit", "git push", "git reset", "git clean", "rm", "del"],
-  denied: ["rm -rf /", "rm -rf ~", "format", "mkfs"],
+  allowed: [
+    "git status",
+    "git diff",
+    "git log",
+    "git branch",
+    "git show",
+    "npm test",
+    "bun test",
+    "vitest",
+    "npm run",
+    "bun run",
+  ],
+  requiresApproval: [
+    "git commit",
+    "git push",
+    "git reset",
+    "git clean",
+    "git checkout",
+    "rm",
+    "del",
+    "rmdir",
+    "mv",
+    "cp",
+    "npm install",
+    "bun install",
+    "pip install",
+  ],
+  denied: [
+    "rm -rf /",
+    "rm -rf ~",
+    "rm -rf /*",
+    "rm -rf *",
+    "format",
+    "mkfs",
+    "dd if=",
+    "shutdown",
+    "reboot",
+    ":(){:|:&};:",
+    "chmod -R 777",
+    "chmod 777",
+  ],
 }
 
 export function classifyCommand(

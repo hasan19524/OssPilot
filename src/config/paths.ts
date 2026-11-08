@@ -10,7 +10,7 @@
  *   cache/        HTTP/AI response caches
  */
 
-import { mkdirSync } from "node:fs"
+import { chmodSync, mkdirSync } from "node:fs"
 import { homedir } from "node:os"
 import { join } from "node:path"
 
@@ -52,6 +52,9 @@ export function getPaths(env: NodeJS.ProcessEnv = process.env): OSSPilotPaths {
 
 /** Create the directory layout if missing. Idempotent. */
 export function ensurePaths(paths: OSSPilotPaths = getPaths()): OSSPilotPaths {
+  const isUnix = process.platform !== "win32"
+  const dirMode = isUnix ? 0o700 : undefined
+
   for (const dir of [
     paths.root,
     paths.configDir,
@@ -62,7 +65,15 @@ export function ensurePaths(paths: OSSPilotPaths = getPaths()): OSSPilotPaths {
     paths.logsDir,
     paths.cacheDir,
   ]) {
-    mkdirSync(dir, { recursive: true })
+    mkdirSync(dir, { recursive: true, mode: dirMode })
+    // On Unix, chmod existing directories (mkdirSync mode only applies to new dirs)
+    if (isUnix) {
+      try {
+        chmodSync(dir, 0o700)
+      } catch {
+        // Ignore chmod errors (e.g., on Windows or permission issues)
+      }
+    }
   }
   return paths
 }

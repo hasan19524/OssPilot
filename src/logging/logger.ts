@@ -43,9 +43,11 @@ export function createLogger(options: LoggerOptions = {}): Logger {
   const emit = (lvl: LogLevel, message: string, data?: Record<string, unknown>) => {
     if (LEVEL_ORDER[lvl] < LEVEL_ORDER[level] || sink === "none") return
     const time = new Date().toISOString()
+    const sanitizedMessage = sanitizeValue(message)
+    const sanitizedData = data ? sanitizeData(data) : undefined
     const line = json
-      ? JSON.stringify({ time, level: lvl, message, ...data })
-      : `${time} ${lvl.toUpperCase().padEnd(5)} ${message}${formatData(data)}`
+      ? JSON.stringify({ time, level: lvl, message: sanitizedMessage, ...sanitizedData })
+      : `${time} ${lvl.toUpperCase().padEnd(5)} ${sanitizedMessage}${formatData(sanitizedData)}`
     writeLine(sink, line)
   }
 
@@ -67,9 +69,33 @@ export function setLogger(logger: Logger): void {
   activeLogger = logger
 }
 
+function sanitizeValue(value: string): string {
+  return value
+    .replace(/ghp_[a-zA-Z0-9]{36}/g, "ghp_***REDACTED***")
+    .replace(/gho_[a-zA-Z0-9]{36}/g, "gho_***REDACTED***")
+    .replace(/bc_live_[a-zA-Z0-9_]+/g, "bc_live_***REDACTED***")
+    .replace(/sk-[a-zA-Z0-9]{20,}/g, "sk-***REDACTED***")
+    .replace(/sk-ant-[a-zA-Z0-9-]+/g, "sk-ant-***REDACTED***")
+    .replace(/nvapi-[a-zA-Z0-9_-]+/g, "nvapi-***REDACTED***")
+}
+
+function sanitizeData(data: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(data)) {
+    if (typeof value === "string") {
+      result[key] = sanitizeValue(value)
+    } else if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      result[key] = sanitizeData(value as Record<string, unknown>)
+    } else {
+      result[key] = value
+    }
+  }
+  return result
+}
+
 function formatData(data?: Record<string, unknown>): string {
   if (!data || Object.keys(data).length === 0) return ""
-  return ` ${JSON.stringify(data)}`
+  return ` ${JSON.stringify(sanitizeData(data))}`
 }
 
 function writeLine(sink: LoggerOptions["sink"], line: string): void {

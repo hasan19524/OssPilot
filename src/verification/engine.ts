@@ -127,6 +127,13 @@ async function runShell(
   command: string,
   cwd: string,
 ): Promise<{ stdout: string; stderr: string; exitCode: number }> {
+  // Enforce command policy
+  const { classifyCommand } = await import("../security/policy")
+  const classification = classifyCommand(command)
+  if (classification === "denied") {
+    return { stdout: "", stderr: `Command denied by policy: ${command}`, exitCode: 1 }
+  }
+
   try {
     const { stdout, stderr } = await execFileAsync(command, [], {
       cwd,

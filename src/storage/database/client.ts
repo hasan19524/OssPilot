@@ -5,7 +5,7 @@
  * WAL mode for safe concurrent reads while the TUI and agent callbacks run.
  */
 
-import { existsSync, mkdirSync } from "node:fs"
+import { chmodSync, existsSync, mkdirSync } from "node:fs"
 import { dirname, join } from "node:path"
 import BetterSqlite3 from "better-sqlite3"
 import { type BetterSQLite3Database, drizzle } from "drizzle-orm/better-sqlite3"
@@ -31,6 +31,14 @@ export function openDatabase(options: OpenDatabaseOptions = {}): Database {
   }
 
   const sqlite = new BetterSqlite3(file)
+  // Restrict file permissions on Unix (owner-only)
+  if (process.platform !== "win32") {
+    try {
+      chmodSync(file, 0o600)
+    } catch {
+      // Ignore chmod errors
+    }
+  }
   sqlite.pragma("journal_mode = WAL")
   sqlite.pragma("foreign_keys = ON")
   sqlite.pragma("busy_timeout = 5000")
