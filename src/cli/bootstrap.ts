@@ -15,6 +15,7 @@ import { registerDoctorCommand } from "./commands/doctor"
 import { registerHistoryCommand } from "./commands/history"
 import { registerIssueCommand } from "./commands/issue"
 import { registerPrsCommand } from "./commands/prs"
+import { registerResearchCommand } from "./commands/research"
 import { registerStatusCommand } from "./commands/status"
 
 export async function runProgram(argv: string[]): Promise<void> {
@@ -38,6 +39,7 @@ export async function runProgram(argv: string[]): Promise<void> {
   registerIssueCommand(program)
   registerContributeCommand(program)
   registerPrsCommand(program)
+  registerResearchCommand(program)
 
   await program.parseAsync(argv)
 }
