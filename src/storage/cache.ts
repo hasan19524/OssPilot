@@ -3,7 +3,7 @@
  * Caches GitHub API responses with TTL to reduce API calls.
  */
 
-import { eq } from "drizzle-orm"
+import { eq, like } from "drizzle-orm"
 import { openDatabase } from "./database/client"
 import { keyValue } from "./database/schema"
 
@@ -62,7 +62,7 @@ export function cacheSet<T>(key: string, data: T, ttlMs = DEFAULT_TTL_MS): void 
 export function cacheClear(): void {
   const db = openDatabase()
   try {
-    db.delete(keyValue).where(eq(keyValue.key, `cache:%`)).run()
+    db.delete(keyValue).where(like(keyValue.key, "cache:%")).run()
   } finally {
     db.close()
   }

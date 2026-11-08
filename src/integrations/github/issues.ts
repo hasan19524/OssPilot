@@ -3,6 +3,7 @@
  */
 
 import { z } from "zod"
+import { cacheGet, cacheSet } from "../../storage/cache"
 import type { GitHubClient } from "./client"
 
 export const issueSchema = z.object({
@@ -71,9 +72,13 @@ export async function getIssue(
   name: string,
   number: number,
 ): Promise<Issue> {
+  const cacheKey = `issue:${owner}/${name}#${number}`
+  const cached = cacheGet<Issue>(cacheKey)
+  if (cached) return cached
+
   const response = await client.octokit.rest.issues.get({ owner, repo: name, issue_number: number })
   const issue = response.data
-  return issueSchema.parse({
+  const result = issueSchema.parse({
     id: issue.id,
     number: issue.number,
     title: issue.title,
@@ -88,6 +93,8 @@ export async function getIssue(
     createdAt: issue.created_at,
     updatedAt: issue.updated_at,
   })
+  cacheSet(cacheKey, result)
+  return result
 }
 
 export async function listIssueComments(

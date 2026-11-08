@@ -1,5 +1,9 @@
 /**
- * Pull request preparation and submission.
+ * Pull request preparation and submission (gh CLI fallback).
+ *
+ * Direct Octokit-based PR creation is in pr-monitoring.ts.
+ * This module provides the gh CLI fallback for environments where
+ * the GitHub API direct approach is unavailable.
  *
  * Requires explicit user approval before any push or PR creation.
  * Never merges automatically.
@@ -7,6 +11,7 @@
 
 import { execFile } from "node:child_process"
 import { promisify } from "node:util"
+import { resolveCommand } from "../../core/exec"
 import { git } from "../../workspace/manager"
 
 const execFileAsync = promisify(execFile)
@@ -31,8 +36,9 @@ export async function createPullRequestViaGh(
   draft: PrDraft,
 ): Promise<{ ok: boolean; url: string; output: string }> {
   try {
+    const ghBin = await resolveCommand("gh")
     const { stdout, stderr } = await execFileAsync(
-      "gh",
+      ghBin,
       [
         "pr",
         "create",
@@ -56,31 +62,5 @@ export async function createPullRequestViaGh(
       url: "",
       output: (err.stdout ?? "") + (err.stderr ?? "") + (err.message ?? ""),
     }
-  }
-}
-
-export async function getPrStatus(prNumber: number, owner: string, repo: string): Promise<string> {
-  try {
-    const { stdout } = await execFileAsync(
-      "gh",
-      [
-        "pr",
-        "view",
-        String(prNumber),
-        "--repo",
-        `${owner}/${repo}`,
-        "--json",
-        "state",
-        "-q",
-        ".state",
-      ],
-      {
-        timeout: 30000,
-        windowsHide: true,
-      },
-    )
-    return stdout.trim()
-  } catch {
-    return "unknown"
   }
 }

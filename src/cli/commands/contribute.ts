@@ -279,37 +279,54 @@ Do not push or create a PR. The developer controls submission.`
 
         await manager.transition(contribution.id, "USER_APPROVAL_PR", "user", "PR approved")
 
-        const submit = await ask("Push branch and create PR via gh? (y/n) ")
+        const submit = await ask("Push branch and create PR? (y/n) ")
         if (submit.toLowerCase() === "y") {
           process.stdout.write("\nPushing branch...\n")
-          const { pushBranch, createPullRequestViaGh } = await import(
-            "../../integrations/github/pr-management"
+          const { pushBranchViaGit, createPullRequest } = await import(
+            "../../integrations/github/pr-monitoring"
           )
-          const pushResult = await pushBranch(worktreePath, branchName)
+          const pushResult = await pushBranchViaGit(worktreePath, branchName)
           process.stdout.write(pushResult.output)
           if (!pushResult.ok) {
             process.stderr.write("Push failed. Contribution paused.\n")
             await manager.pause(contribution.id, "Push failed")
             return
           }
-          process.stdout.write("Creating PR...\n")
-          const prResult = await createPullRequestViaGh(worktreePath, {
+          process.stdout.write("Creating PR via GitHub API...\n")
+          const prResult = await createPullRequest(client, ref.owner, ref.repo, {
             title: prTitle,
             body: prBody,
-            headBranch: branchName,
-            baseBranch,
+            head: branchName,
+            base: baseBranch,
           })
-          process.stdout.write(prResult.output)
           if (prResult.ok) {
             process.stdout.write(`\nPR created: ${prResult.url}\n`)
-            if (prResult.url) {
-              const numMatch = prResult.url.match(/\/pull\/(\d+)/)
-              if (numMatch) await manager.setPr(contribution.id, Number(numMatch[1]), prResult.url)
-            }
+            if (prResult.number) await manager.setPr(contribution.id, prResult.number, prResult.url)
           } else {
-            process.stderr.write("PR creation failed. Contribution paused.\n")
-            await manager.pause(contribution.id, "PR creation failed")
-            return
+            // Fallback to gh CLI if available
+            process.stdout.write(`Direct API failed (${prResult.error}), trying gh CLI...\n`)
+            const { createPullRequestViaGh } = await import(
+              "../../integrations/github/pr-management"
+            )
+            const ghResult = await createPullRequestViaGh(worktreePath, {
+              title: prTitle,
+              body: prBody,
+              headBranch: branchName,
+              baseBranch,
+            })
+            process.stdout.write(ghResult.output)
+            if (ghResult.ok) {
+              process.stdout.write(`\nPR created: ${ghResult.url}\n`)
+              if (ghResult.url) {
+                const numMatch = ghResult.url.match(/\/pull\/(\d+)/)
+                if (numMatch)
+                  await manager.setPr(contribution.id, Number(numMatch[1]), ghResult.url)
+              }
+            } else {
+              process.stderr.write("PR creation failed. Contribution paused.\n")
+              await manager.pause(contribution.id, "PR creation failed")
+              return
+            }
           }
         } else {
           process.stdout.write("\nSkipped push/PR. You can push manually later.\n")

@@ -104,21 +104,30 @@ export class ContributionManager {
   }): Promise<ContributionRecord> {
     const id = `contrib-${Date.now()}-${randomUUID().slice(0, 8)}`
     const now = new Date()
-    this.db
-      .insert(contributions)
-      .values({
-        id,
-        repoOwner: input.repoOwner,
-        repoName: input.repoName,
-        issueNumber: input.issueNumber ?? null,
-        issueTitle: input.issueTitle ?? null,
-        stage: "DISCOVER",
-        agentId: input.agentId ?? null,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .run()
-    this.appendEvent(id, "DISCOVER", "system", "stage.entered", "Contribution created")
+
+    // Wrap in transaction for consistency
+    const sqlite = (
+      this.db as unknown as { $client: { transaction: (fn: () => void) => () => void } }
+    ).$client
+    const txn = sqlite.transaction(() => {
+      this.db
+        .insert(contributions)
+        .values({
+          id,
+          repoOwner: input.repoOwner,
+          repoName: input.repoName,
+          issueNumber: input.issueNumber ?? null,
+          issueTitle: input.issueTitle ?? null,
+          stage: "DISCOVER",
+          agentId: input.agentId ?? null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run()
+      this.appendEvent(id, "DISCOVER", "system", "stage.entered", "Contribution created")
+    })
+    txn()
+
     const created = this.get(id)
     if (!created) throw new Error("Contribution creation failed")
     return created
@@ -156,12 +165,27 @@ export class ContributionManager {
     if (!current) throw new Error(`Contribution not found: ${id}`)
     if (current.stage === "CANCELLED") throw new Error("Cannot transition a cancelled contribution")
     const now = new Date()
-    this.db
-      .update(contributions)
-      .set({ stage: toStage, updatedAt: now, pausedAt: null })
-      .where(eq(contributions.id, id))
-      .run()
-    this.appendEvent(id, toStage, actor, "stage.entered", message ?? `Moved to ${toStage}`, payload)
+
+    const sqlite = (
+      this.db as unknown as { $client: { transaction: (fn: () => void) => () => void } }
+    ).$client
+    const txn = sqlite.transaction(() => {
+      this.db
+        .update(contributions)
+        .set({ stage: toStage, updatedAt: now, pausedAt: null })
+        .where(eq(contributions.id, id))
+        .run()
+      this.appendEvent(
+        id,
+        toStage,
+        actor,
+        "stage.entered",
+        message ?? `Moved to ${toStage}`,
+        payload,
+      )
+    })
+    txn()
+
     const updated = this.get(id)
     if (!updated) throw new Error("Contribution transition failed")
     return updated

@@ -4,6 +4,7 @@
 
 import { type ChildProcess, spawn } from "node:child_process"
 import { OSSPilotError } from "../../../core/errors"
+import { resolveCommand } from "../../../core/exec"
 import type {
   AgentAdapter,
   AgentCapabilities,
@@ -221,7 +222,8 @@ export class OpenCodeAdapter implements AgentAdapter {
     if (existing) return existing
 
     const port = await findFreePort()
-    const child = spawn("opencode", ["serve", "--port", String(port), "--hostname", "127.0.0.1"], {
+    const opencodeBin = await resolveCommand("opencode")
+    const child = spawn(opencodeBin, ["serve", "--port", String(port), "--hostname", "127.0.0.1"], {
       cwd: worktreePath,
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
@@ -266,21 +268,13 @@ async function runCommand(
   const { execFile } = await import("node:child_process")
   const { promisify } = await import("node:util")
   const exec = promisify(execFile)
-  const { stdout, stderr } = await exec(command, args, { timeout: 10000, windowsHide: true })
+  const resolved = await resolveCommand(command)
+  const { stdout, stderr } = await exec(resolved, args, { timeout: 10000, windowsHide: true })
   return { stdout: stdout ?? "", stderr: stderr ?? "" }
 }
 
 async function which(command: string): Promise<string | null> {
-  try {
-    const { execFile } = await import("node:child_process")
-    const { promisify } = await import("node:util")
-    const exec = promisify(execFile)
-    const cmd = process.platform === "win32" ? "where" : "which"
-    const { stdout } = await exec(cmd, [command], { timeout: 5000, windowsHide: true })
-    return stdout.trim().split(/\r?\n/)[0] ?? null
-  } catch {
-    return null
-  }
+  return resolveCommand(command)
 }
 
 async function findFreePort(): Promise<number> {

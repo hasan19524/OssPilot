@@ -70,6 +70,7 @@ export class AnthropicProvider implements LLMProvider {
     _schema: object,
     options?: { model?: string },
   ): Promise<T | null> {
+    if (!this.client) return null
     const result = await this.chat(messages, options)
     try {
       return JSON.parse(result.content) as T

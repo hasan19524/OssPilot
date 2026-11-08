@@ -11,7 +11,7 @@ export function App() {
   // Poll for contribution state updates (live data from DB).
   useEffect(() => {
     const manager = new ContributionManager()
-    const poll = () => {
+    const poll = async () => {
       try {
         const active = manager.listActive()
         if (active.length > 0) {
@@ -26,7 +26,7 @@ export function App() {
             issueTitle: c.issueTitle ?? "",
             contributionStage: c.stage,
           })
-          const events = manager.events(c.id, 5)
+          const events = manager.events(c.id, 8)
           const newLines = events.map(
             (e) =>
               `[${e.createdAt.toISOString().slice(11, 19)}] ${e.actor}: ${e.message ?? e.type}`,
@@ -35,13 +35,28 @@ export function App() {
             store.clearActivity()
             for (const line of newLines) store.appendActivity(line)
           }
+
+          // Fetch real worktree data if a worktree exists
+          if (c.worktreePath) {
+            try {
+              const { WorktreeManager } = await import("../../workspace/manager")
+              const wm = new WorktreeManager()
+              const [diffStat, changedFiles] = await Promise.all([
+                wm.diffStat(c.worktreePath),
+                wm.changedFiles(c.worktreePath),
+              ])
+              store.setDiffData({ diffStat, changedFiles })
+            } catch {
+              // Worktree may not exist yet
+            }
+          }
         }
       } catch {
         // Ignore polling errors.
       }
     }
     poll()
-    const interval = setInterval(poll, 2000)
+    const interval = setInterval(poll, 3000)
     return () => {
       clearInterval(interval)
       manager.close()
@@ -171,10 +186,11 @@ function TerminalPanel() {
 }
 
 function DiffPanel() {
+  const diffStat = useTuiStore((s) => s.diffStat)
   return (
     <box style={{ flexDirection: "column", border: true, height: 10, padding: 1 }}>
       <text fg="#e5e7eb">GIT DIFF (Ctrl+D to toggle)</text>
-      <text fg="#9ca3af">[diff appears here]</text>
+      {diffStat ? <text fg="#9ca3af">{diffStat}</text> : <text fg="#4b5563">No changes yet</text>}
     </box>
   )
 }
@@ -198,10 +214,19 @@ function LogsPanel() {
 }
 
 function ChangedFilesPanel() {
+  const changedFiles = useTuiStore((s) => s.changedFiles)
   return (
     <box style={{ flexDirection: "column", border: true, height: 8, padding: 1 }}>
-      <text fg="#e5e7eb">CHANGED FILES</text>
-      <text fg="#9ca3af">[changed files appear here]</text>
+      <text fg="#e5e7eb">CHANGED FILES ({changedFiles.length})</text>
+      {changedFiles.length > 0 ? (
+        changedFiles.map((f) => (
+          <text key={f} fg="#d1d5db">
+            {f}
+          </text>
+        ))
+      ) : (
+        <text fg="#4b5563">No changed files</text>
+      )}
     </box>
   )
 }

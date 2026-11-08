@@ -11,6 +11,7 @@ import { promisify } from "node:util"
 import { ensurePaths, getPaths, type OSSPilotPaths } from "../config/paths"
 import { loadUserConfig } from "../config/settings"
 import { openDatabase } from "../storage/database/client"
+import { resolveCommand } from "./exec"
 
 const execFileAsync = promisify(execFile)
 
@@ -46,7 +47,8 @@ async function commandVersion(
   timeoutMs = 8000,
 ): Promise<string | null> {
   try {
-    const { stdout } = await execFileAsync(command, args, { timeout: timeoutMs, windowsHide: true })
+    const bin = await resolveCommand(command)
+    const { stdout } = await execFileAsync(bin, args, { timeout: timeoutMs, windowsHide: true })
     return stdout.trim().split(/\r?\n/)[0] ?? null
   } catch {
     return null

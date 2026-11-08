@@ -37,6 +37,10 @@ export interface TuiState {
   // Activity feed
   activityLines: string[]
 
+  // Worktree data
+  diffStat: string
+  changedFiles: string[]
+
   // Composer
   composerInput: string
 
@@ -53,6 +57,7 @@ export interface TuiState {
   appendActivity: (line: string) => void
   clearActivity: () => void
   setContributionContext: (ctx: Partial<TuiState>) => void
+  setDiffData: (data: { diffStat: string; changedFiles: string[] }) => void
 }
 
 export const useTuiStore = create<TuiState>((set) => ({
@@ -78,6 +83,8 @@ export const useTuiStore = create<TuiState>((set) => ({
   executionMode: "investigation",
 
   activityLines: [],
+  diffStat: "",
+  changedFiles: [],
   composerInput: "",
 
   connectionStatus: "disconnected",
@@ -97,4 +104,5 @@ export const useTuiStore = create<TuiState>((set) => ({
   appendActivity: (line) => set((s) => ({ activityLines: [...s.activityLines, line] })),
   clearActivity: () => set({ activityLines: [] }),
   setContributionContext: (ctx) => set((s) => ({ ...s, ...ctx })),
+  setDiffData: (data) => set({ diffStat: data.diffStat, changedFiles: data.changedFiles }),
 }))

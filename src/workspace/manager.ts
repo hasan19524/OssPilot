@@ -12,6 +12,7 @@ import { join, resolve, sep } from "node:path"
 import { promisify } from "node:util"
 import { getPaths } from "../config/paths"
 import { OSSPilotError } from "../core/errors"
+import { resolveCommand } from "../core/exec"
 import { classifyCommand } from "../security/policy"
 
 const execFileAsync = promisify(execFile)
@@ -31,6 +32,8 @@ const SAFE_GIT_FLAGS = new Set([
   "--stat",
   "--all",
   "--prune",
+  "--oneline",
+  "-1",
   "-b",
   "-B",
   "--force",
@@ -118,7 +121,8 @@ export async function git(args: string[], cwd?: string): Promise<GitResult> {
   }
 
   try {
-    const { stdout, stderr } = await execFileAsync("git", sanitizedArgs, {
+    const gitBin = await resolveCommand("git")
+    const { stdout, stderr } = await execFileAsync(gitBin, sanitizedArgs, {
       cwd,
       timeout: 120000,
       windowsHide: true,

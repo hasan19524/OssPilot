@@ -13,6 +13,7 @@
 
 import { execFile } from "node:child_process"
 import { promisify } from "node:util"
+import { resolveCommand } from "../../core/exec"
 
 const execFileAsync = promisify(execFile)
 
@@ -41,7 +42,8 @@ export async function resolveGitHubToken(
   }
   // Bootstrap from gh CLI (only if installed and authenticated).
   try {
-    const { stdout } = await execFileAsync("gh", ["auth", "token"], {
+    const ghBin = await resolveCommand("gh")
+    const { stdout } = await execFileAsync(ghBin, ["auth", "token"], {
       timeout: 8000,
       windowsHide: true,
     })
