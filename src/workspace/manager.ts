@@ -257,4 +257,22 @@ export class WorktreeManager {
       .filter(Boolean)
       .map((line) => line.slice(3).trim())
   }
+
+  async commit(worktreePath: string, message: string): Promise<{ ok: boolean; output: string }> {
+    assertPathContainment(getPaths().worktreesDir, worktreePath)
+    // Stage all changes
+    const addResult = await git(["add", "-A"], worktreePath)
+    if (addResult.exitCode !== 0) {
+      return { ok: false, output: addResult.stderr }
+    }
+    // Commit
+    const commitResult = await git(["commit", "-m", message], worktreePath)
+    return { ok: commitResult.exitCode === 0, output: commitResult.stdout + commitResult.stderr }
+  }
+
+  async log(worktreePath: string, count = 5): Promise<string> {
+    assertPathContainment(getPaths().worktreesDir, worktreePath)
+    const result = await git(["log", "--oneline", `-${count}`], worktreePath)
+    return result.stdout
+  }
 }

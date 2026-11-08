@@ -52,6 +52,12 @@ export function openDatabase(options: OpenDatabaseOptions = {}): Database {
   return db
 }
 
+export function runTransaction<T>(db: Database, fn: () => T): T {
+  const sqlite = (db as unknown as { $client: { transaction: (fn: () => T) => () => T } }).$client
+  const txn = sqlite.transaction(fn)
+  return txn()
+}
+
 export function runMigrations(db: Database): void {
   const folder = migrationsFolder()
   if (!existsSync(join(folder, "meta", "_journal.json"))) {
