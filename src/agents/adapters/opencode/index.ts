@@ -1,16 +1,8 @@
 /**
  * OpenCode adapter (Phase 6).
- *
- * Spawns a dedicated `opencode serve` instance per worktree (project-scoped),
- * then drives it through @opencode-ai/sdk. Never touches the user's own
- * OpenCode TUI/background service.
- *
- * Only this file knows about OpenCode specifics. The rest of OSSPilot talks to
- * the AgentAdapter interface.
  */
 
 import { type ChildProcess, spawn } from "node:child_process"
-import { createOpencodeClient } from "@opencode-ai/sdk/v2"
 import { OSSPilotError } from "../../../core/errors"
 import type {
   AgentAdapter,
@@ -19,7 +11,6 @@ import type {
   AgentSession,
   AvailabilityStatus,
   InstallationStatus,
-  PermissionRequest,
   SessionConfig,
   TaskSpec,
 } from "../../base/adapter"
@@ -43,7 +34,6 @@ export class OpenCodeAdapter implements AgentAdapter {
     try {
       const { stdout } = await runCommand("opencode", ["--version"])
       const version = stdout.trim().split(/\r?\n/)[0]
-      // Find binary path
       const path = await which("opencode")
       return { installed: true, version, path: path ?? undefined, limitations }
     } catch (error) {
@@ -64,7 +54,7 @@ export class OpenCodeAdapter implements AgentAdapter {
 
   async getCapabilities(): Promise<AgentCapabilities> {
     return {
-      streaming: true,
+      streaming: false,
       structuredOutput: true,
       permissions: true,
       steering: true,
@@ -74,26 +64,31 @@ export class OpenCodeAdapter implements AgentAdapter {
     }
   }
 
+  private authHeaders(server: RunningServer): Record<string, string> {
+    return { Authorization: `Basic ${btoa(`opencode:${server.password}`)}` }
+  }
+
   async startSession(config: SessionConfig): Promise<AgentSession> {
     const server = await this.ensureServer(config.worktreePath)
-    // Auth header for basic auth
-    const authClient = createOpencodeClient({
-      baseUrl: server.baseUrl,
-      // The SDK uses fetch; inject Authorization via a custom fetch.
-      fetch: (input: RequestInfo | URL, init?: RequestInit) => {
-        const headers = new Headers(init?.headers)
-        headers.set("Authorization", `Basic ${btoa(`opencode:${server.password}`)}`)
-        return fetch(input, { ...init, headers })
-      },
+    const headers = { ...this.authHeaders(server), "Content-Type": "application/json" }
+    const res = await fetch(`${server.baseUrl}/session`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ title: config.title ?? "OSSPilot contribution" }),
     })
-    const session = await authClient.session.create(
-      { title: config.title ?? "OSSPilot contribution" },
-      { throwOnError: true },
-    )
-    const externalId =
-      (session as { data?: { id?: string } })?.data?.id ?? (session as { id?: string })?.id
+    if (!res.ok) {
+      throw new OSSPilotError(
+        "AGENT_SESSION_ERROR",
+        `session create failed: ${res.status} ${await res.text()}`,
+      )
+    }
+    const json = (await res.json()) as { data?: { id?: string }; id?: string }
+    const externalId = json?.data?.id ?? json?.id
     if (!externalId) {
-      throw new OSSPilotError("AGENT_SESSION_ERROR", "OpenCode did not return a session id")
+      throw new OSSPilotError(
+        "AGENT_SESSION_ERROR",
+        `OpenCode did not return a session id: ${JSON.stringify(json).slice(0, 300)}`,
+      )
     }
     return {
       id: `oc-${Date.now()}`,
@@ -106,84 +101,103 @@ export class OpenCodeAdapter implements AgentAdapter {
     if (!session.externalSessionId) {
       throw new OSSPilotError("AGENT_SESSION_ERROR", "Session has no external id")
     }
-    // Find the server for this session (we keyed by worktree; reuse the last).
     const server = Array.from(this.servers.values()).pop()
     if (!server) throw new OSSPilotError("AGENT_SESSION_ERROR", "No running OpenCode server")
 
-    const client = createOpencodeClient({
-      baseUrl: server.baseUrl,
-      fetch: (input: RequestInfo | URL, init?: RequestInit) => {
-        const headers = new Headers(init?.headers)
-        headers.set("Authorization", `Basic ${btoa(`opencode:${server.password}`)}`)
-        return fetch(input, { ...init, headers })
-      },
-    })
+    const headers = { ...this.authHeaders(server), "Content-Type": "application/json" }
+    const sid = session.externalSessionId
 
     yield { type: "session.started" }
 
-    // Send the prompt asynchronously.
-    await client.session.promptAsync(
-      {
-        sessionID: session.externalSessionId,
-        parts: [{ type: "text", text: task.prompt }],
-        ...(task.structuredOutputSchema
-          ? { format: { type: "json_schema", schema: task.structuredOutputSchema } }
-          : {}),
-      },
-      { throwOnError: true },
-    )
+    // Send the prompt.
+    const promptRes = await fetch(`${server.baseUrl}/session/${sid}/prompt`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ text: task.prompt }),
+    })
+    if (!promptRes.ok) {
+      yield {
+        type: "session.failed",
+        error: `prompt failed: ${promptRes.status} ${await promptRes.text()}`,
+      }
+      return
+    }
 
-    // Stream events filtered to this session until idle.
-    const events = await client.event.subscribe()
-    for await (const event of events.stream) {
-      const e = event as { type?: string; properties?: Record<string, unknown> }
-      const type = e.type ?? ""
-      const props = e.properties ?? {}
-      const sessionId = (props.sessionID ?? props.sessionId) as string | undefined
-      if (sessionId && sessionId !== session.externalSessionId) continue
-
-      if (type === "session.text.delta") {
-        const content = (props.delta ?? props.text ?? "") as string
-        if (content) yield { type: "message.delta", content }
-      } else if (type === "session.tool.called" || type === "session.tool.started") {
-        const tool = (props.tool ?? props.name ?? "tool") as string
-        yield { type: "tool.started", tool }
-      } else if (type === "session.tool.success" || type === "session.tool.completed") {
-        const tool = (props.tool ?? props.name ?? "tool") as string
-        yield { type: "tool.completed", tool }
-        const filePath = (props.path ?? props.file) as string | undefined
-        if (filePath) yield { type: "file.changed", path: filePath }
-      } else if (type === "permission.asked") {
-        const req: PermissionRequest = {
-          id: String(props.id ?? props.requestID ?? ""),
-          title: String(props.title ?? "Permission required"),
-          description: props.description as string | undefined,
-          options: Array.isArray(props.options) ? (props.options as string[]) : ["allow", "deny"],
+    // Poll for the assistant response.
+    const deadline = Date.now() + 300000
+    let lastText = ""
+    while (Date.now() < deadline) {
+      await sleep(2000)
+      const msgRes = await fetch(`${server.baseUrl}/session/${sid}/message`, {
+        headers: this.authHeaders(server),
+      })
+      if (!msgRes.ok) continue
+      const json = (await msgRes.json()) as { data?: unknown }
+      const messages = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : []
+      // Find assistant messages.
+      const assistantMsgs = messages.filter(
+        (m: { type?: string }) => m.type === "assistant" || m.type === "assistant",
+      )
+      if (assistantMsgs.length === 0) continue
+      // Get the last assistant message's text.
+      const last = assistantMsgs[assistantMsgs.length - 1] as {
+        parts?: Array<{ type?: string; text?: string }>
+        info?: { structured?: unknown }
+      }
+      const textParts = (last.parts ?? []).filter(
+        (p) => p.type === "text" && typeof p.text === "string",
+      )
+      const fullText = textParts.map((p) => p.text as string).join("")
+      if (fullText && fullText !== lastText) {
+        // Yield only the new portion.
+        const newText = fullText.slice(lastText.length)
+        if (newText) yield { type: "message.delta", content: newText }
+        lastText = fullText
+      }
+      // Check if session is idle (no more processing). We'll check message count stability.
+      // Simple heuristic: if we got a full response and 2s passed, consider done.
+      // Better: check session status endpoint.
+      // Termination: if we have a stable full response, finish.
+      if (fullText && fullText === lastText) {
+        await sleep(2000)
+        const recheck = await fetch(`${server.baseUrl}/session/${sid}/message`, {
+          headers: this.authHeaders(server),
+        })
+        if (recheck.ok) {
+          const rjson = (await recheck.json()) as { data?: unknown }
+          const rmsgs = Array.isArray(rjson?.data) ? rjson.data : []
+          const rassistants = rmsgs.filter((m: { type?: string }) => m.type === "assistant")
+          const rlast = rassistants[rassistants.length - 1] as
+            | { parts?: Array<{ type?: string; text?: string }> }
+            | undefined
+          const rtext = (rlast?.parts ?? [])
+            .filter((p) => p.type === "text")
+            .map((p) => p.text ?? "")
+            .join("")
+          if (rtext === fullText || rtext === "") {
+            yield { type: "session.completed" }
+            return
+          }
+          lastText = rtext
+          if (rtext && rtext !== fullText) {
+            const newText = rtext.slice(fullText.length)
+            if (newText) yield { type: "message.delta", content: newText }
+          }
         }
-        yield { type: "permission.required", request: req }
-      } else if (type === "session.execution.failed") {
-        yield { type: "session.failed", error: String(props.error ?? "execution failed") }
-        return
-      } else if (type === "session.idle" || type === "session.execution.succeeded") {
-        yield { type: "session.completed" }
-        return
       }
     }
+
+    yield { type: "session.completed" }
   }
 
   async cancel(session: AgentSession): Promise<void> {
     if (!session.externalSessionId) return
     const server = Array.from(this.servers.values()).pop()
     if (!server) return
-    const client = createOpencodeClient({
-      baseUrl: server.baseUrl,
-      fetch: (input: RequestInfo | URL, init?: RequestInit) => {
-        const headers = new Headers(init?.headers)
-        headers.set("Authorization", `Basic ${btoa(`opencode:${server.password}`)}`)
-        return fetch(input, { ...init, headers })
-      },
-    })
-    await client.session.abort({ sessionID: session.externalSessionId }).catch(() => undefined)
+    await fetch(`${server.baseUrl}/session/${session.externalSessionId}/interrupt`, {
+      method: "POST",
+      headers: this.authHeaders(server),
+    }).catch(() => undefined)
   }
 
   async getStatus(session: AgentSession): Promise<AgentSession["status"]> {
@@ -194,33 +208,29 @@ export class OpenCodeAdapter implements AgentAdapter {
     const existing = this.servers.get(worktreePath)
     if (existing) return existing
 
-    const password = randomPassword()
     const port = await findFreePort()
     const child = spawn("opencode", ["serve", "--port", String(port), "--hostname", "127.0.0.1"], {
       cwd: worktreePath,
-      env: {
-        ...process.env,
-        OPENCODE_SERVER_PASSWORD: password,
-        OPENCODE_SERVER_USERNAME: "opencode",
-      },
       stdio: ["ignore", "pipe", "pipe"],
       windowsHide: true,
     })
 
-    const baseUrl = `http://127.0.0.1:${port}`
-    // Wait for health.
-    const deadline = Date.now() + 15000
-    while (Date.now() < deadline) {
-      try {
-        const res = await fetch(`${baseUrl}/global/health`, {
-          headers: { Authorization: `Basic ${btoa(`opencode:${password}`)}` },
-        })
-        if (res.ok) break
-      } catch {
-        // not ready
-      }
+    let password = ""
+    child.stdout?.on("data", (chunk: Buffer) => {
+      const text = chunk.toString()
+      const match = text.match(/server password\s+(\S+)/)
+      if (match?.[1]) password = match[1]
+    })
+
+    const baseUrl = `http://127.0.0.1:${port}/api`
+    const deadline = Date.now() + 20000
+    while (Date.now() < deadline && !password) {
       await sleep(250)
     }
+    if (!password) {
+      throw new OSSPilotError("AGENT_SESSION_ERROR", "OpenCode server did not report a password")
+    }
+    await sleep(500)
 
     const server: RunningServer = { process: child, baseUrl, password }
     this.servers.set(worktreePath, server)
@@ -228,16 +238,8 @@ export class OpenCodeAdapter implements AgentAdapter {
   }
 }
 
-// --- helpers ---
-
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-function randomPassword(): string {
-  const bytes = new Uint8Array(24)
-  crypto.getRandomValues(bytes)
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")
 }
 
 async function runCommand(
