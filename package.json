@@ -32,6 +32,7 @@
     "better-sqlite3": "^13.0.3",
     "commander": "^15.1.0",
     "drizzle-orm": "^0.45.4",
+    "keytar": "^7.9.0",
     "octokit": "^5.0.5",
     "openai": "^7.53.0",
     "react": "^19.2",

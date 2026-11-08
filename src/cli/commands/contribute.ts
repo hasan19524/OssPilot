@@ -246,23 +246,47 @@ Do not push or create a PR. The developer controls submission.`
         }
 
         await manager.transition(contribution.id, "USER_APPROVAL_PR", "user", "PR approved")
-        process.stdout.write("\n[9/9] Ready to submit PR.\n")
-        process.stdout.write(
-          "  (Actual push + PR creation requires explicit final confirmation — not auto-executed.)\n",
-        )
+
+        const submit = await ask("Push branch and create PR via gh? (y/n) ")
+        if (submit.toLowerCase() === "y") {
+          process.stdout.write("\nPushing branch...\n")
+          const { pushBranch, createPullRequestViaGh } = await import(
+            "../../integrations/github/pr-management"
+          )
+          const pushResult = await pushBranch(worktreePath, branchName)
+          process.stdout.write(pushResult.output)
+          if (!pushResult.ok) {
+            process.stderr.write("Push failed. Contribution paused.\n")
+            await manager.pause(contribution.id, "Push failed")
+            return
+          }
+          process.stdout.write("Creating PR...\n")
+          const prResult = await createPullRequestViaGh(worktreePath, {
+            title: prTitle,
+            body: prBody,
+            headBranch: branchName,
+            baseBranch,
+          })
+          process.stdout.write(prResult.output)
+          if (prResult.ok) {
+            process.stdout.write(`\nPR created: ${prResult.url}\n`)
+            if (prResult.url) {
+              const numMatch = prResult.url.match(/\/pull\/(\d+)/)
+              if (numMatch) await manager.setPr(contribution.id, Number(numMatch[1]), prResult.url)
+            }
+          } else {
+            process.stderr.write("PR creation failed. Contribution paused.\n")
+            await manager.pause(contribution.id, "PR creation failed")
+            return
+          }
+        } else {
+          process.stdout.write("\nSkipped push/PR. You can push manually later.\n")
+        }
+
+        await manager.transition(contribution.id, "PR_SUBMISSION", "system", "PR prepared")
+        process.stdout.write(`\nContribution ${contribution.id} complete.\n`)
         process.stdout.write(`  Worktree: ${worktreePath}\n`)
         process.stdout.write(`  Branch: ${branchName}\n`)
-        process.stdout.write(`  Contribution: ${contribution.id}\n`)
-        process.stdout.write(
-          "\nTo submit: push the branch and create the PR manually, or re-run with --submit (future).\n",
-        )
-
-        await manager.transition(
-          contribution.id,
-          "PR_SUBMISSION",
-          "system",
-          "PR prepared (manual submission)",
-        )
       } catch (error) {
         process.stderr.write(`\nWorkflow failed: ${String(error)}\n`)
         process.exitCode = 1

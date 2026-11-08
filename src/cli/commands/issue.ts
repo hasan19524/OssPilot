@@ -6,6 +6,7 @@ import { createGitHubClient } from "../../integrations/github/client"
 import { getIssue, listIssueComments } from "../../integrations/github/issues"
 import { parseGitHubRef } from "../../integrations/github/ref"
 import { getRepository } from "../../integrations/github/repositories"
+import { createCredentialStore } from "../../security/credentials"
 
 export function registerIssueCommand(program: Command): void {
   program
@@ -22,7 +23,11 @@ export function registerIssueCommand(program: Command): void {
 
       const client = await createGitHubClient()
       const config = loadUserConfig(getPaths())
-      const apiKey = process.env[config.bharatcodeApiKeyEnvVar] ?? null
+      const store = createCredentialStore()
+      const apiKey =
+        (await store.get("bharatcode_api_key")) ??
+        process.env[config.bharatcodeApiKeyEnvVar] ??
+        null
       const intelligence = new IntelligenceService(config, apiKey)
 
       process.stdout.write(`Fetching ${ref.owner}/${ref.repo}#${ref.issueNumber}...\n\n`)
