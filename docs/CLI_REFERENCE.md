@@ -51,13 +51,20 @@ Show or edit user configuration.
 ### `osspilot history`
 View past contributions.
 
+### `osspilot prs [reference]`
+Monitor pull requests from your contributions.
+
+**Usage:**
+- `osspilot prs` — all tracked PRs
+- `osspilot prs owner/repo#123` — specific PR status, comments, reviews, CI checks
+
 ### `osspilot research <reference>`
-Research an issue and repository: project health, issue intelligence, contribution suitability, contribution requirements.
+Research an issue and repository: project health, issue intelligence, contribution suitability, repository deep inspection, contribution requirements.
 
 **Reference format:** `owner/repository` or `owner/repository#123`
 
 **Options:**
-- `--no-clone` — skip local repository inspection (CONTRIBUTING.md, templates, DCO/CLA)
+- `--no-clone` — skip local repository inspection
 
 **Example:**
 ```bash
@@ -65,12 +72,10 @@ osspilot research prettier/prettier#20408
 osspilot research octocat/Hello-World --no-clone
 ```
 
-### `osspilot prs`
-Monitor pull requests from your contributions.
+### `osspilot revise <reference>`
+Analyse maintainer feedback on a PR and prepare a revision plan (requires approval before delegating to OpenCode; never posts replies automatically).
 
-**Usage:**
-- `osspilot prs` — all tracked PRs
-- `osspilot prs owner/repo#123` — specific PR status, comments, reviews, CI checks
+**Reference format:** `owner/repository#PR-number`
 
 ## Exit Codes
 

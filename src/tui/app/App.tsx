@@ -1,6 +1,7 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { ContributionManager } from "../../core/contributions"
+import { dispatch } from "../dispatcher"
 import { useTuiStore } from "../store"
 
 export function App() {
@@ -70,7 +71,7 @@ export function App() {
       return
     }
     if (key.ctrl && key.name === "p") {
-      store.appendActivity("[command palette]")
+      store.appendActivity("[command palette] /help lists all commands")
       return
     }
     if (key.ctrl && key.name === "j") {
@@ -234,13 +235,33 @@ function ChangedFilesPanel() {
 function Composer() {
   const input = useTuiStore((s) => s.composerInput)
   const setInput = useTuiStore((s) => s.setComposerInput)
+  const appendActivity = useTuiStore((s) => s.appendActivity)
+  const [busy, setBusy] = useState(false)
+
+  const submit = async () => {
+    const text = input.trim()
+    if (!text || busy) return
+    appendActivity(`› ${text}`)
+    setInput("")
+    setBusy(true)
+    try {
+      const result = await dispatch(text, (line) => appendActivity(line))
+      for (const line of result.output) appendActivity(line)
+    } catch (error) {
+      appendActivity(`Error: ${String(error)}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <box style={{ flexDirection: "row", border: true, height: 3, padding: 1 }}>
-      <text fg="#9ca3af">› </text>
+      <text fg="#9ca3af">{busy ? "… " : "› "}</text>
       <input
         value={input}
         onInput={setInput}
-        placeholder="Send instructions to the agent, or /help for commands"
+        onSubmit={submit}
+        placeholder="Ask OSSPilot, or /help for commands"
         style={{ flexGrow: 1 }}
       />
     </box>

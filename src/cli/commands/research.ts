@@ -83,7 +83,7 @@ export function registerResearchCommand(program: Command): void {
       }
 
       // 4. Repository requirements (local inspection)
-      process.stdout.write("\n[4/4] Inspecting contribution requirements...\n")
+      process.stdout.write("\n[4/4] Inspecting repository...\n")
       if (options.clone !== false) {
         try {
           const rm = new RepositoryManager()
@@ -92,6 +92,16 @@ export function registerResearchCommand(program: Command): void {
             ref.repo,
             `https://github.com/${ref.owner}/${ref.repo}.git`,
           )
+
+          // 4a. Deep inspection (architecture, manifests, tests, CI)
+          const { inspectRepository, formatRepoInspection } = await import(
+            "../../intelligence/repo-inspection"
+          )
+          const inspection = await inspectRepository(repoPath)
+          process.stdout.write(formatRepoInspection(inspection))
+
+          // 4b. Contribution requirements
+          process.stdout.write("\n")
           const requirements = inspectContributionRequirements(repoPath)
           process.stdout.write(summariseRequirements(requirements))
           if (requirements.evidence.length > 0) {

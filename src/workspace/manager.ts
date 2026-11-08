@@ -93,22 +93,22 @@ export function assertPathContainment(baseDir: string, targetPath: string): void
  * Sanitize a git argument. Rejects arguments that start with '-' unless they
  * are in the known-safe set. This prevents flag injection.
  */
-function sanitizeGitArg(arg: string): string {
+function sanitizeGitArg(arg: string): void {
   if (arg.startsWith("-") && !SAFE_GIT_FLAGS.has(arg)) {
-    // Allow combined short flags like -b
-    if (!/^-[a-zA-Z]$/.test(arg)) {
+    // Allow single-letter short flags (-b, -B, -u) and numeric counts (-5).
+    if (!/^-[a-zA-Z]$/.test(arg) && !/^-\d+$/.test(arg)) {
       throw new OSSPilotError("WORKSPACE_ERROR", `Potentially unsafe git argument: ${arg}`)
     }
   }
-  return arg
 }
 
 export async function git(args: string[], cwd?: string): Promise<GitResult> {
   // Validate all arguments
-  const sanitizedArgs = args.map(sanitizeGitArg)
+  // Validate all arguments before execution.
+  for (const arg of args) sanitizeGitArg(arg)
 
   // Enforce command policy
-  const command = `git ${sanitizedArgs.join(" ")}`
+  const command = `git ${args.join(" ")}`
   const classification = classifyCommand(command)
   if (classification === "denied") {
     throw new OSSPilotError("POLICY_VIOLATION", `Command denied by policy: ${command}`)
@@ -122,7 +122,7 @@ export async function git(args: string[], cwd?: string): Promise<GitResult> {
 
   try {
     const gitBin = await resolveCommand("git")
-    const { stdout, stderr } = await execFileAsync(gitBin, sanitizedArgs, {
+    const { stdout, stderr } = await execFileAsync(gitBin, args, {
       cwd,
       timeout: 120000,
       windowsHide: true,

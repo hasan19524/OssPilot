@@ -1,4 +1,6 @@
 export * from "./issue-intelligence"
+export * from "./maintainer-feedback"
 export * from "./project-health"
+export * from "./repo-inspection"
 export * from "./requirements"
 export * from "./suitability"
