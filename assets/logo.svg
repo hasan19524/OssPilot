@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0d1117"/>
+      <stop offset="100%" style="stop-color:#161b22"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00d4aa"/>
+      <stop offset="100%" style="stop-color:#00b4d8"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <circle cx="60" cy="60" r="56" fill="url(#bg)" stroke="url(#accent)" stroke-width="2"/>
+  <!-- Terminal chevron > -->
+  <path d="M38 42 L58 60 L38 78" fill="none" stroke="url(#accent)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Pilot compass needle (vertical line through center) -->
+  <line x1="60" y1="30" x2="60" y2="90" stroke="url(#accent)" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+  <!-- Compass point (top) -->
+  <polygon points="60,26 56,34 64,34" fill="url(#accent)"/>
+  <!-- Compass point (bottom) -->
+  <polygon points="60,94 56,86 64,86" fill="url(#accent)" opacity="0.5"/>
+  <!-- Small terminal cursor block -->
+  <rect x="66" y="54" width="16" height="4" rx="1" fill="url(#accent)" opacity="0.8"/>
+  <!-- Dots representing OSS contribution nodes -->
+  <circle cx="78" cy="38" r="2.5" fill="#00d4aa" opacity="0.6"/>
+  <circle cx="88" cy="50" r="2" fill="#00b4d8" opacity="0.5"/>
+  <circle cx="82" cy="82" r="2" fill="#00d4aa" opacity="0.4"/>
+</svg>

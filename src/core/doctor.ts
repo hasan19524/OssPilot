@@ -119,32 +119,58 @@ export async function runDoctorChecks(options: DoctorOptions = {}): Promise<Chec
 
   // 8. GitHub token source
   const config = loadUserConfig(paths)
-  const ghToken = env[config.githubTokenEnvVar]
+  const { createCredentialStore } = await import("../security/credentials")
+  const store = createCredentialStore()
+  const storedGhToken = await store.get("github_token")
+  const ghToken = storedGhToken ?? env[config.githubTokenEnvVar] ?? env.GH_TOKEN ?? env.GITHUB_TOKEN
   if (ghToken && ghToken.length > 0) {
-    results.push(ok("github-token", `set via ${config.githubTokenEnvVar}`))
-  } else if (env.GH_TOKEN || env.GITHUB_TOKEN) {
-    results.push(warn("github-token", "not set; GH_TOKEN/GITHUB_TOKEN present as fallback"))
+    const source = storedGhToken
+      ? "OS keyring"
+      : env[config.githubTokenEnvVar]
+        ? "env var"
+        : "GH_TOKEN/GITHUB_TOKEN"
+    results.push(ok("github-token", `configured (${source})`))
   } else {
     results.push(
       warn(
         "github-token",
         "not configured",
-        'Run "osspilot config" to authenticate with GitHub (device flow) or set the token env var',
+        'Run "osspilot config auth github" to authenticate, or set OSSPILOT_GITHUB_TOKEN',
       ),
     )
   }
 
   // 9. BharatCode API key
-  const bcKey = env[config.bharatcodeApiKeyEnvVar]
+  const storedBcKey = await store.get("bharatcode_api_key")
+  const bcKey = storedBcKey ?? env[config.bharatcodeApiKeyEnvVar]
   if (bcKey && bcKey.length > 0) {
     results.push(ok("bharatcode", `${config.bharatcodeModel} via ${config.bharatcodeBaseUrl}`))
   } else {
     results.push(
       warn(
         "bharatcode",
-        `${config.bharatcodeApiKeyEnvVar} not set (AI features disabled)`,
-        "GitHub-only features keep working; get a key at https://bharatcode.ai/account",
+        "not configured (AI features disabled)",
+        'Run "osspilot config auth bharatcode" or use OpenAI/Anthropic/Ollama instead',
       ),
+    )
+  }
+
+  // 10. LLM providers
+  const providers: string[] = []
+  if (storedBcKey ?? env[config.bharatcodeApiKeyEnvVar]) providers.push("BharatCode")
+  if (env.OSSPILOT_OPENAI_API_KEY) providers.push("OpenAI")
+  if (env.OSSPILOT_ANTHROPIC_API_KEY) providers.push("Anthropic")
+  try {
+    const res = await fetch("http://localhost:11434/api/tags")
+    if (res.ok) providers.push("Ollama (local)")
+  } catch {
+    /* not running */
+  }
+  if (providers.length > 0) {
+    results.push(ok("llm-providers", providers.join(", ")))
+  } else {
+    results.push(
+      warn("llm-providers", "none configured", "Set up at least one LLM provider for AI features"),
     )
   }
 

@@ -62,6 +62,37 @@ export class LLMProviderRegistry {
         case "ollama":
           registry.register(new OllamaProvider(config))
           break
+        case "nvidia":
+          registry.register(
+            new OpenAICompatibleProvider(config, "NVIDIA", [
+              "meta/llama-3.1-405b-instruct",
+              "meta/llama-3.3-70b-instruct",
+              "mistralai/mistral-large-2-instruct",
+              "nvidia/llama-3.1-nemotron-70b-instruct",
+            ]),
+          )
+          break
+        case "openrouter":
+          registry.register(
+            new OpenAICompatibleProvider(config, "OpenRouter", [
+              "openai/gpt-4o",
+              "anthropic/claude-sonnet-4",
+              "google/gemini-2.0-flash-exp",
+              "meta-llama/llama-3.3-70b-instruct",
+            ]),
+          )
+          break
+        case "google":
+          config.baseUrl =
+            config.baseUrl ?? "https://generativelanguage.googleapis.com/v1beta/openai/"
+          registry.register(
+            new OpenAICompatibleProvider(config, "Google AI Studio", [
+              "gemini-2.0-flash",
+              "gemini-1.5-pro",
+              "gemini-1.5-flash",
+            ]),
+          )
+          break
         default:
           // Generic OpenAI-compatible for any custom endpoint
           registry.register(
