@@ -1,10 +1,52 @@
 import { useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react"
+import { useEffect } from "react"
+import { ContributionManager } from "../../core/contributions"
 import { useTuiStore } from "../store"
 
 export function App() {
   const renderer = useRenderer()
   const { width, height } = useTerminalDimensions()
   const store = useTuiStore()
+
+  // Poll for contribution state updates (live data from DB).
+  useEffect(() => {
+    const manager = new ContributionManager()
+    const poll = () => {
+      try {
+        const active = manager.listActive()
+        if (active.length > 0) {
+          const c = active[0]
+          if (!c) return
+          store.setContributionContext({
+            currentContributionId: c.id,
+            repoOwner: c.repoOwner,
+            repoName: c.repoName,
+            branch: c.branchName ?? "",
+            issueNumber: c.issueNumber,
+            issueTitle: c.issueTitle ?? "",
+            contributionStage: c.stage,
+          })
+          const events = manager.events(c.id, 5)
+          const newLines = events.map(
+            (e) =>
+              `[${e.createdAt.toISOString().slice(11, 19)}] ${e.actor}: ${e.message ?? e.type}`,
+          )
+          if (newLines.length > 0) {
+            store.clearActivity()
+            for (const line of newLines) store.appendActivity(line)
+          }
+        }
+      } catch {
+        // Ignore polling errors.
+      }
+    }
+    poll()
+    const interval = setInterval(poll, 2000)
+    return () => {
+      clearInterval(interval)
+      manager.close()
+    }
+  }, [store])
 
   useKeyboard((key) => {
     if (key.ctrl && key.name === "c") {

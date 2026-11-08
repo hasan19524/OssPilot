@@ -24,11 +24,23 @@ export function registerIssueCommand(program: Command): void {
       const client = await createGitHubClient()
       const config = loadUserConfig(getPaths())
       const store = createCredentialStore()
-      const apiKey =
-        (await store.get("bharatcode_api_key")) ??
-        process.env[config.bharatcodeApiKeyEnvVar] ??
-        null
-      const intelligence = new IntelligenceService(config, apiKey)
+      const { LLMProviderRegistry } = await import("../../integrations/llm/registry")
+      const providerConfigs = [
+        {
+          id: "bharatcode",
+          apiKey:
+            (await store.get("bharatcode_api_key")) ??
+            process.env[config.bharatcodeApiKeyEnvVar] ??
+            undefined,
+          baseUrl: config.bharatcodeBaseUrl,
+          model: config.bharatcodeModel,
+          enabled: true,
+        },
+      ]
+      const registry = LLMProviderRegistry.fromConfigs(providerConfigs)
+      const available = await registry.available()
+      const provider = available.length > 0 ? (available[0] ?? null) : null
+      const intelligence = new IntelligenceService(provider)
 
       process.stdout.write(`Fetching ${ref.owner}/${ref.repo}#${ref.issueNumber}...\n\n`)
 

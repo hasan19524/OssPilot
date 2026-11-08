@@ -47,6 +47,20 @@ export function registerContributeCommand(program: Command): void {
         const issue = await getIssue(client, ref.owner, ref.repo, ref.issueNumber)
         process.stdout.write(`  ${issue.title}\n`)
 
+        // Pre-flight checks (search existing PRs, repo health, etc.)
+        process.stdout.write("\n  Running pre-flight checks...\n")
+        const { runPreflight } = await import("../../integrations/github/preflight")
+        const preflight = await runPreflight(ref.owner, ref.repo, ref.issueNumber)
+        for (const w of preflight.warnings) process.stdout.write(`  ⚠ ${w}\n`)
+        for (const b of preflight.blockers) process.stdout.write(`  ✗ ${b}\n`)
+        if (!preflight.ok) {
+          const proceed = await ask("Blockers found. Continue anyway? (y/n) ")
+          if (proceed.toLowerCase() !== "y") {
+            process.stdout.write("Aborted.\n")
+            return
+          }
+        }
+
         // 2. Create contribution
         const contribution = await manager.create({
           repoOwner: ref.owner,
