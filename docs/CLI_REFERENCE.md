@@ -51,6 +51,13 @@ Show or edit user configuration.
 ### `osspilot history`
 View past contributions.
 
+### `osspilot prs`
+Monitor pull requests from your contributions.
+
+**Usage:**
+- `osspilot prs` — all tracked PRs
+- `osspilot prs owner/repo#123` — specific PR status, comments, reviews, CI checks
+
 ## Exit Codes
 
 - `0` — Success
