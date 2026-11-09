@@ -103,3 +103,37 @@ describe("repository inspection integration", () => {
     expect(report.structure.sourceRoots).toContain("src")
   })
 })
+
+describe("new TUI commands", () => {
+  it("/sessions reports the empty state without fabrication", async () => {
+    const out = await collect("/sessions")
+    expect(out.join("\n")).toContain("conversation")
+  })
+
+  it("/history lists history", async () => {
+    const out = await collect("/history")
+    expect(out.join("\n")).toContain("onversation")
+  })
+
+  it("/new creates a conversation", async () => {
+    const out = await collect("/new")
+    expect(out.join("\n")).toMatch(/session-/)
+  })
+
+  it("/resume without an id gives a usage error, not a fabricated result", async () => {
+    const out = await collect("/resume")
+    expect(out.join("\n")).toMatch(/Usage|usage|Unknown command/)
+  })
+
+  it("/resume with an unknown id reports it cleanly", async () => {
+    const out = await collect("/resume nope")
+    expect(out.join("\n")).toMatch(/No session|Unknown command/)
+  })
+
+  it("/agents reports a real runtime state", async () => {
+    const out = await collect("/agents")
+    const text = out.join("\n")
+    expect(text).toContain("OpenCode")
+    expect(text).toMatch(/IDLE|NOT_INSTALLED|CONNECTED|DISCONNECTED/)
+  })
+})

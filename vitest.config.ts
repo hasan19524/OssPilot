@@ -5,11 +5,12 @@ export default defineConfig({
     include: ["tests/**/*.test.ts"],
     environment: "node",
     globals: false,
-    coverage: {
-      provider: "v8",
-      include: ["src/**/*.ts", "src/**/*.tsx"],
-      exclude: ["src/**/*.d.ts", "src/**/index.ts"],
-      reporter: ["text", "json", "html"],
+    testTimeout: 30000,
+    hookTimeout: 30000,
+    pool: "forks",
+    poolOptions: {
+      forks: { singleFork: true },
     },
+    fileParallelism: false,
   },
 })

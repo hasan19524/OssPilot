@@ -15,6 +15,13 @@
       "when": 1794095320992,
       "tag": "0001_lovely_pet_avengers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1794211234074,
+      "tag": "0002_secret_tarot",
+      "breakpoints": true
     }
   ]
 }

@@ -10,11 +10,34 @@ import type {
   AgentCapabilities,
   AgentEvent,
   AgentSession,
+  AgentStatusReport,
   AvailabilityStatus,
   InstallationStatus,
   SessionConfig,
   TaskSpec,
 } from "../../base/adapter"
+import { extractAffectedPath } from "./path-extract"
+
+/**
+ * Permission ruleset applied to every OSSPilot-opened session.
+ *
+ * File edits inside the isolated worktree are permitted by design (the user
+ * approved the plan and the worktree is disposable). Network fetches are
+ * denied, and shell execution stays at "ask" so the reply policy decides.
+ */
+const SESSION_PERMISSIONS = [
+  { action: "edit", resource: "*", effect: "allow" },
+  { action: "write", resource: "*", effect: "allow" },
+  { action: "patch", resource: "*", effect: "allow" },
+  { action: "read", resource: "*", effect: "allow" },
+  { action: "webfetch", resource: "*", effect: "deny" },
+]
+
+/**
+ * Tools whose permission requests are auto-approved once.
+ * These are local file operations inside the isolated worktree.
+ */
+const FILE_EDIT_TOOLS = new Set(["edit", "write", "patch", "multiedit", "createfile", "applypatch"])
 
 interface RunningServer {
   process: ChildProcess
@@ -29,6 +52,9 @@ export class OpenCodeAdapter implements AgentAdapter {
   readonly experimental = false
 
   private servers = new Map<string, RunningServer>()
+  private activeSessionIds = new Map<string, string>()
+  private providerId: string | null = null
+  private modelId: string | null = null
 
   async detectInstallation(): Promise<InstallationStatus> {
     const limitations: string[] = []
@@ -53,6 +79,77 @@ export class OpenCodeAdapter implements AgentAdapter {
     return { available: true }
   }
 
+  async getStatusReport(options: { worktreePath?: string } = {}): Promise<AgentStatusReport> {
+    const install = await this.detectInstallation()
+    if (!install.installed) {
+      return {
+        installed: false,
+        version: install.version ?? null,
+        executablePath: install.path ?? null,
+        state: "NOT_INSTALLED",
+        provider: null,
+        model: null,
+        activeSessionId: null,
+        worktreePath: options.worktreePath ?? null,
+        lastError: null,
+        limitations: install.limitations,
+      }
+    }
+
+    if (options.worktreePath) {
+      const existing = this.servers.get(options.worktreePath)
+      if (!existing) {
+        return {
+          installed: true,
+          version: install.version ?? null,
+          executablePath: install.path ?? null,
+          state: "IDLE",
+          provider: this.providerId,
+          model: this.modelId,
+          activeSessionId: null,
+          worktreePath: options.worktreePath,
+          lastError: null,
+          limitations: install.limitations,
+        }
+      }
+      const reachable = await this.pingServer(existing)
+      return {
+        installed: true,
+        version: install.version ?? null,
+        executablePath: install.path ?? null,
+        state: reachable ? "CONNECTED" : "DISCONNECTED",
+        provider: this.providerId,
+        model: this.modelId,
+        activeSessionId: this.activeSessionIds.get(options.worktreePath) ?? null,
+        worktreePath: options.worktreePath,
+        lastError: reachable ? null : "Server process is alive but not responding",
+        limitations: install.limitations,
+      }
+    }
+
+    return {
+      installed: true,
+      version: install.version ?? null,
+      executablePath: install.path ?? null,
+      state: "IDLE",
+      provider: this.providerId,
+      model: this.modelId,
+      activeSessionId: null,
+      worktreePath: null,
+      lastError: null,
+      limitations: install.limitations,
+    }
+  }
+
+  private async pingServer(server: RunningServer): Promise<boolean> {
+    try {
+      const res = await fetch(`${server.baseUrl}/info`, { method: "GET" })
+      return res.ok
+    } catch {
+      return false
+    }
+  }
+
   async getCapabilities(): Promise<AgentCapabilities> {
     return {
       streaming: false,
@@ -75,7 +172,10 @@ export class OpenCodeAdapter implements AgentAdapter {
     const res = await fetch(`${server.baseUrl}/session`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ title: config.title ?? "OSSPilot contribution" }),
+      body: JSON.stringify({
+        title: config.title ?? "OSSPilot contribution",
+        permissions: SESSION_PERMISSIONS,
+      }),
     })
     if (!res.ok) {
       throw new OSSPilotError(
@@ -102,95 +202,166 @@ export class OpenCodeAdapter implements AgentAdapter {
     if (!session.externalSessionId) {
       throw new OSSPilotError("AGENT_SESSION_ERROR", "Session has no external id")
     }
+
     const server = Array.from(this.servers.values()).pop()
     if (!server) throw new OSSPilotError("AGENT_SESSION_ERROR", "No running OpenCode server")
 
     const headers = { ...this.authHeaders(server), "Content-Type": "application/json" }
     const sid = session.externalSessionId
 
+    // Track the session against the worktree key it belongs to.
+    let worktreeKey: string | undefined
+    for (const [key, value] of this.servers) {
+      if (value === server) worktreeKey = key
+    }
+    if (worktreeKey) this.activeSessionIds.set(worktreeKey, sid)
+
     yield { type: "session.started" }
 
-    // Send the prompt.
-    const promptRes = await fetch(`${server.baseUrl}/session/${sid}/prompt`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ text: task.prompt }),
-    })
-    if (!promptRes.ok) {
-      yield {
-        type: "session.failed",
-        error: `prompt failed: ${promptRes.status} ${await promptRes.text()}`,
+    // Live permission handling: a headless server auto-rejects unresolved
+    // requests. File edits inside the isolated worktree are approved once;
+    // anything else is rejected and surfaced through the event stream.
+    let stopPermissions = false
+    const permissionLoop = (async () => {
+      while (!stopPermissions) {
+        await sleep(1200)
+        if (stopPermissions) return
+        try {
+          const res = await fetch(`${server.baseUrl}/permission/request`, {
+            headers: this.authHeaders(server),
+          })
+          if (!res.ok) continue
+          const body = (await res.json()) as { data?: Array<Record<string, unknown>> }
+          const requests = Array.isArray(body?.data) ? body.data : []
+          for (const request of requests) {
+            const id = String(request.id ?? request.requestID ?? "")
+            if (!id) continue
+            const tool = String(request.tool ?? request.action ?? "").toLowerCase()
+            const decision = FILE_EDIT_TOOLS.has(tool) || tool === "" ? "once" : "reject"
+            await fetch(`${server.baseUrl}/session/${sid}/permission/${id}/reply`, {
+              method: "POST",
+              headers,
+              body: JSON.stringify({ decision }),
+            })
+          }
+        } catch {
+          // Permission endpoint may be location-scoped; ignore and retry.
+        }
       }
-      return
-    }
+    })()
 
-    // Poll for the assistant response.
-    const deadline = Date.now() + 300000
-    let lastText = ""
-    while (Date.now() < deadline) {
-      await sleep(2000)
-      const msgRes = await fetch(`${server.baseUrl}/session/${sid}/message`, {
-        headers: this.authHeaders(server),
+    try {
+      const promptRes = await fetch(`${server.baseUrl}/session/${sid}/prompt`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ text: task.prompt }),
       })
-      if (!msgRes.ok) continue
-      const json = (await msgRes.json()) as { data?: unknown }
-      const messages = Array.isArray(json?.data) ? json.data : Array.isArray(json) ? json : []
-      // Find assistant messages.
-      const assistantMsgs = messages.filter(
-        (m: { type?: string }) => m.type === "assistant" || m.type === "assistant",
-      )
-      if (assistantMsgs.length === 0) continue
-      // Get the last assistant message's text.
-      const last = assistantMsgs[assistantMsgs.length - 1] as {
-        parts?: Array<{ type?: string; text?: string }>
-        info?: { structured?: unknown }
+      if (!promptRes.ok) {
+        yield {
+          type: "session.failed",
+          error: `prompt failed: ${promptRes.status} ${await promptRes.text()}`,
+        }
+        return
       }
-      const textParts = (last.parts ?? []).filter(
-        (p) => p.type === "text" && typeof p.text === "string",
-      )
-      const fullText = textParts.map((p) => p.text as string).join("")
-      if (fullText && fullText !== lastText) {
-        // Yield only the new portion.
-        const newText = fullText.slice(lastText.length)
-        if (newText) yield { type: "message.delta", content: newText }
-        lastText = fullText
-      }
-      // Check if session is idle (no more processing). We'll check message count stability.
-      // Simple heuristic: if we got a full response and 2s passed, consider done.
-      // Better: check session status endpoint.
-      // Termination: if we have a stable full response, finish.
-      if (fullText && fullText === lastText) {
+
+      const deadline = Date.now() + 300000
+      let lastText = ""
+      const seenMessageIds = new Set<string>()
+      const seenToolIds = new Set<string>()
+      let hasToolActivity = false
+
+      while (Date.now() < deadline) {
         await sleep(2000)
-        const recheck = await fetch(`${server.baseUrl}/session/${sid}/message`, {
+        const msgRes = await fetch(`${server.baseUrl}/session/${sid}/message`, {
           headers: this.authHeaders(server),
         })
-        if (recheck.ok) {
-          const rjson = (await recheck.json()) as { data?: unknown }
-          const rmsgs = Array.isArray(rjson?.data) ? rjson.data : []
-          const rassistants = rmsgs.filter((m: { type?: string }) => m.type === "assistant")
-          const rlast = rassistants[rassistants.length - 1] as
-            | { parts?: Array<{ type?: string; text?: string }> }
-            | undefined
-          const rtext = (rlast?.parts ?? [])
-            .filter((p) => p.type === "text")
-            .map((p) => p.text ?? "")
-            .join("")
-          if (rtext === fullText || rtext === "") {
-            yield { type: "session.completed" }
-            return
+        if (!msgRes.ok) continue
+        const json = (await msgRes.json()) as { data?: Array<Record<string, unknown>> }
+        const messages = Array.isArray(json?.data) ? json.data : []
+
+        for (const raw of messages) {
+          const messageId = String(raw.id ?? "")
+          if (messageId && seenMessageIds.has(messageId)) continue
+          if (messageId) seenMessageIds.add(messageId)
+
+          const type = String(raw.type ?? "")
+          if (type !== "assistant") continue
+
+          const content = Array.isArray(raw.content) ? raw.content : []
+          for (const part of content) {
+            if (!part || typeof part !== "object") continue
+            const record = part as Record<string, unknown>
+            const partType = String(record.type ?? "")
+
+            // Internal chain-of-thought is never surfaced.
+            if (partType === "reasoning") continue
+
+            if (partType === "tool") {
+              const toolId = String(record.id ?? `${messageId}-${seenToolIds.size}`)
+              if (seenToolIds.has(toolId)) continue
+              seenToolIds.add(toolId)
+              hasToolActivity = true
+              const toolName = String(record.name ?? "tool")
+              if (process.env.OSSPILOT_DEBUG_AGENT) {
+                process.stderr.write(
+                  `[oc] ALL tool states: ${JSON.stringify(content).slice(0, 800)}\n`,
+                )
+              }
+              yield { type: "tool.started", tool: toolName }
+              const state = record.state as Record<string, unknown> | undefined
+              const filePath = extractAffectedPath(state)
+              if (filePath) yield { type: "file.changed", path: filePath }
+            } else if (partType === "text" && typeof record.text === "string") {
+              const accumulated = buildAssistantText(content)
+              if (accumulated && accumulated !== lastText) {
+                const delta = accumulated.slice(lastText.length)
+                if (delta) yield { type: "message.delta", content: delta }
+                lastText = accumulated
+              }
+            }
           }
-          lastText = rtext
-          if (rtext && rtext !== fullText) {
-            const newText = rtext.slice(fullText.length)
-            if (newText) yield { type: "message.delta", content: newText }
+
+          const structured = (raw as { info?: { structured?: unknown } }).info?.structured
+          if (structured) {
+            yield {
+              type: "message.delta",
+              content: `\n\n[structured] ${JSON.stringify(structured)}`,
+            }
+          }
+        }
+
+        // A stable response after real tool activity finishes the turn.
+        if (hasToolActivity && lastText) {
+          await sleep(2500)
+          const recheck = await fetch(`${server.baseUrl}/session/${sid}/message`, {
+            headers: this.authHeaders(server),
+          })
+          if (recheck.ok) {
+            const rjson = (await recheck.json()) as { data?: Array<Record<string, unknown>> }
+            const rMessages = Array.isArray(rjson?.data) ? rjson.data : []
+            const rText = rMessages
+              .filter((m) => String(m.type ?? "") === "assistant")
+              .map((m) => buildAssistantText(Array.isArray(m.content) ? m.content : []))
+              .join("")
+            if (rText === lastText || rText === "") {
+              yield { type: "session.completed" }
+              return
+            }
+            if (rText && rText !== lastText) {
+              const delta = rText.slice(lastText.length)
+              if (delta) yield { type: "message.delta", content: delta }
+              lastText = rText
+            }
           }
         }
       }
+
+      yield { type: "session.completed" }
+    } finally {
+      stopPermissions = true
+      await permissionLoop.catch(() => undefined)
     }
-
-    yield { type: "session.completed" }
   }
-
   async cancel(session: AgentSession): Promise<void> {
     if (!session.externalSessionId) return
     const server = Array.from(this.servers.values()).pop()
@@ -288,4 +459,12 @@ async function findFreePort(): Promise<number> {
     })
     srv.on("error", reject)
   })
+}
+
+function buildAssistantText(content: unknown[]): string {
+  return content
+    .filter((p): p is Record<string, unknown> => Boolean(p) && typeof p === "object")
+    .filter((p) => String(p.type ?? "") === "text" && typeof p.text === "string")
+    .map((p) => String(p.text))
+    .join("")
 }

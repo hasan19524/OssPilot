@@ -1,46 +1,41 @@
-# OSSPilot — Installation Verification
+# OSSPilot - Installation Verification
 
-## Status: **PASS on Windows 11**
+## Status: PASS on Windows 11
 
 ## Binary
 
 | Property | Value |
 |---|---|
-| Command | `bun build src/index.ts --compile --outfile dist/osspilot` |
-| Modules bundled | 905 |
-| Result size | ~60–90 MB |
+| Command | bun build src/index.ts --compile --outfile dist/osspilot |
+| Modules bundled | 906 |
 | Runtime requirement | none (Bun is embedded) |
+| Migrations | embedded in src/storage/migrations/bundle.ts |
 
 ## Clean-home verification
 
-Run with `OSSPILOT_HOME` at a fresh empty directory:
+Run with OSSPILOT_HOME at a fresh empty directory:
 
-```powershell
-$env:OSSPILOT_HOME = "$env:TEMP\clean-test\.osspilot"
-```
-
-| Check | Result | Detail |
-|---|---|---|
-| `doctor` | **PASS** | 0 failures, 0 warnings; created the full directory tree |
-| `setup` | **PASS** | Git OK, OpenCode OK, GitHub OK, BharatCode OK, agent-browser 0.39.2 detected |
-| `agents` | **PASS** | `OpenCode installed opencode v2.2.5` |
-| `history` | **PASS** | "No contributions recorded yet." |
-| `resume` | **PASS** | "No interrupted contributions found." |
-| `resume <id> bogus` | **PASS (rejected)** | usage error, exit 1 |
-| `resume <id> abandon` (no `--confirm`) | **PASS (rejected)** | refused, exit 1 |
-| Table creation | **PASS** | all 10 tables from the embedded manifest |
-| Idempotent restart | **PASS** | no duplicate-table errors |
+| Check | Result |
+|---|---|
+| doctor | PASS - 0 failures, 0 warnings; full directory tree created |
+| setup | PASS - Git OK, OpenCode OK, GitHub OK, BharatCode OK, agent-browser 0.39.2 detected |
+| agents | PASS - OpenCode installed opencode v2.2.5 |
+| history, resume | PASS - empty states, no fabricated data |
+| resume <id> bogus | PASS (rejected) - usage error, exit 1 |
+| resume <id> abandon (no --confirm) | PASS (rejected) - refused, nothing discarded |
+| Migration runner | PASS - all 10 tables created from the embedded manifest |
+| Idempotent restart | PASS - no duplicate-table errors |
 
 ## Bug found and fixed by this test
 
-**Standalone binaries skipped migrations.** `import.meta.url` does not resolve to a disk
-path in a compiled Bun executable, so the filesystem migrator found no `_journal.json`
-and silently returned — leaving a database with no tables and crashing on first use.
+Standalone binaries silently skipped migrations. import.meta.url does not resolve to
+a disk path in a compiled Bun executable, so the filesystem migrator found no
+_journal.json and returned without creating any tables - the binary crashed on first
+use with "no such table: audit_log".
 
-**Fix.** Migration SQL is inlined into `src/storage/migrations/bundle.ts` by
-`scripts/generate-migrations.py` (wired into `prebuild`), and
-`src/storage/database/migrations.ts` applies the embedded manifest per migration inside
-a transaction, idempotently.
+Fixed by inlining migration SQL into a generated manifest
+(scripts/generate-migrations.py, wired to prebuild) and applying it in
+src/storage/database/migrations.ts inside per-migration transactions.
 
 This is exactly the class of bug a clean-install test catches and a dev-machine run
 does not.
@@ -53,12 +48,8 @@ does not.
 | VS Code integrated terminal | PASS |
 | PowerShell 7 | PASS |
 
-TUI renders, stays alive, and is killable on `SIGINT`.
-
 ## Not verified
 
-- Clean machine with no Bun/Node (the binary needs neither, but this was not tested on a
-  virgin Windows image).
+- Clean machine with no Bun/Node (the binary needs neither, but not tested on a virgin image).
 - macOS / Linux (no hardware).
-- Network-restricted environments.
-- Upgrade from a prior release (no prior release exists).
+- Upgrade from a prior release (none exists).

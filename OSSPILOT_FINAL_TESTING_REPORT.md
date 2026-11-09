@@ -1,74 +1,60 @@
-# OSSPilot — Final Testing Report
+# OSSPilot - Final Testing Report
 
-## Summary
+## Gates
 
-```
-Test Files  14 passed (14)
-Tests       141 passed (141)
-Duration    ~6s
-typecheck   0 errors
-lint        0 errors (96 files)
-build       dist/osspilot.exe (905 modules)
-coverage    40.08% statements, 33.62% branches, 41.25% functions, 40.52% lines (v8)
-```
+| Gate | Result |
+|---|---|
+| bun run typecheck | 0 errors |
+| bun run lint | 0 errors (100 files) |
+| bun run test | 165 passed (19 files) |
+| bun run test:coverage | 52.58% statements measured |
+| bun run build | dist/osspilot.exe |
+
+Tests run serially (fileParallelism: false) so git worktree fixtures do not
+interfere with each other; runtime is ~85s.
 
 ## Test suites
 
-| Suite | Tests | Coverage area |
+| Suite | Tests | Covers |
 |---|---|---|
-| `config.test.ts` | 5 | paths, OSSPILOT_HOME, defaults, round-trip, invalid JSON |
-| `database.test.ts` | 3 | in-memory open, insert/read, event append |
-| `doctor.test.ts` | 2 | isolated-home checks, credential warning |
-| `security.test.ts` | 24 | git-arg validation, path containment, ref validation, command policy, crypto |
-| `integration.test.ts` | 6 | transactions, rollback, atomic transition, cache |
-| `workspace.test.ts` | 8 | worktree create/dirty/diff/commit/validate, repository manager |
-| `verification.test.ts` | 7 | verification engine, LLM registry |
-| `llm.test.ts` | 9 | OpenAI/Anthropic/Ollama config and availability |
-| `opencode.test.ts` | 6 | detection, availability, capabilities, shutdown |
-| `intelligence.test.ts` | 12 | requirements, suitability, feedback, revision |
-| `repo-inspection.test.ts` | 11 | manifests, CI, python, no-fabrication, formatting, vendor skip, feedback |
-| `pr-monitoring.test.ts` | 11 | reviews, comments, inline, CI, merge, errors, empty data |
-| `tui-dispatcher.test.ts` | 10 | help, unknown, empty-state honesty, real agent detection, refuse to fabricate |
-| `contribution-runner.test.ts` | 8 | rejection of malformed refs, no fabrication, approval contract, worktree fixture |
-| `recovery.test.ts` | 10 | interrupted detection, resume, abandon with/without confirm, inspect, worktree health |
-| `github-gaps.test.ts` | 11 | pagination, rate-limit/403/404 propagation, caching, ref edge cases |
-| `migrations.test.ts` | 4 | embedded manifest, fresh file DB, idempotent reopen, transaction rollback |
+| config.test.ts | 5 | paths, OSSPILOT_HOME, defaults, round-trip, invalid JSON |
+| database.test.ts | 3 | in-memory open, insert/read, event append |
+| doctor.test.ts | 2 | isolated-home checks, credential warning |
+| security.test.ts | 24 | git-arg injection, path traversal, ref validation, policy, crypto |
+| integration.test.ts | 6 | transactions, rollback, atomic transition, cache |
+| workspace.test.ts | 8 | worktree create/dirty/diff/commit/validate |
+| verification.test.ts | 7 | verification engine, LLM registry |
+| llm.test.ts | 9 | OpenAI/Anthropic/Ollama config and availability |
+| opencode.test.ts | 6 | detection, availability, capabilities, shutdown |
+| intelligence.test.ts | 12 | requirements, suitability, feedback, revision |
+| repo-inspection.test.ts | 11 | manifests, CI, python, no-fabrication, vendor skip |
+| pr-monitoring.test.ts | 11 | reviews, comments, inline, CI, merge, errors, empty data |
+| tui-dispatcher.test.ts | 16 | help, unknown, empty-state honesty, sessions, refuse-to-fabricate |
+| contribution-runner.test.ts | 6 | rejection of malformed/injected refs, no fabrication, worktree fixture |
+| recovery.test.ts | 10 | interrupted detection, resume, abandon confirm, worktree health |
+| github-gaps.test.ts | 11 | pagination, rate-limit/403/404 propagation, caching |
+| migrations.test.ts | 4 | embedded manifest, fresh DB, idempotent reopen, transaction rollback |
+| conversation.test.ts | 13 | session CRUD, rename, archive, delete, registry, runtime status |
+| path-extract.test.ts | 5 | OpenCode tool-state path extraction cases |
 
-(17 entries above group 14 files; counts match the 141 total.)
+## Not covered
 
-## Coverage by module (measured)
+1. Live GitHub API calls - fixtures substitute for the REST client.
+2. TUI rendering - no OpenTUI render harness installed; dispatcher logic is tested
+   instead and startup is verified in three real terminals.
+3. macOS / Linux - no hardware available.
+4. Live OpenCode execution - manual acceptance run (see
+   OSPPILOT_REAL_OPENCODE_VALIDATION.md).
 
-| Module | Statements | Notes |
-|---|---|---|
-| workspace/manager | ~77% | best-covered; includes fixture git repos |
-| security/policy | ~71% | |
-| storage/database/client, migrations | ~88% | |
-| config, errors, doctor | 60–95% | |
-| integrations/llm | low–medium | availability tested, live calls untested |
-| integrations/github | low | live calls untested; fixtures cover paths |
-| agents/opencode | low–medium | detection/capabilities tested, execution untested |
-| tui | ~0% | rendering untested; dispatcher logic tested instead |
-| cli/commands | low–medium | command logic tested indirectly through services |
+## Test fixes made this cycle
 
-## What is not covered
-
-1. **Live contribution to completion** — requires a paid OpenCode provider.
-2. **Live GitHub calls** — fixtures substitute for the REST client.
-3. **TUI rendering** — no OpenTUI render tests; verified manually in terminals.
-4. **macOS / Linux** — no runtime available on this machine.
-
-## Quality gates (all run)
-
-```
-bun run typecheck     -> 0 errors
-bun run lint          -> 0 errors, 96 files
-bun run test          -> 141 passed
-bun run test:coverage -> 40.08% measured
-bun run build         -> dist/osspilot.exe
-bash scripts/verify-install.sh  (clean-home, all tables created)
-```
+- Vitest now runs files serially; parallel git worktree fixtures were racing.
+- contribution-runner tests reset OSSPILOT_HOME per test instead of once; the old
+  variant let afterEach strip the env var and later fixtures escaped the sandbox.
+- Windows EPERM cleanup is now retry-tolerant.
+- Default testTimeout raised to 30s for opencode detection under load.
 
 ## Policy
 
-No test was weakened or removed to improve results. Mocks return controlled data and
-assert rejection paths, not fake success. Coverage is measured, not estimated.
+No test was weakened or removed. Mocks return controlled data and assert rejection
+paths; no mock returns fake success. Coverage is measured with @vitest/coverage-v8.

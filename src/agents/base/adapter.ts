@@ -10,6 +10,30 @@
  * implemented; the interface is designed so they can be added later.
  */
 
+export type AgentRuntimeState =
+  | "NOT_INSTALLED"
+  | "NOT_AUTHENTICATED"
+  | "STARTING"
+  | "CONNECTING"
+  | "CONNECTED"
+  | "GENERATING"
+  | "IDLE"
+  | "ERROR"
+  | "DISCONNECTED"
+
+export interface AgentStatusReport {
+  installed: boolean
+  version: string | null
+  executablePath: string | null
+  state: AgentRuntimeState
+  provider: string | null
+  model: string | null
+  activeSessionId: string | null
+  worktreePath: string | null
+  lastError: string | null
+  limitations: string[]
+}
+
 export interface InstallationStatus {
   installed: boolean
   version?: string
@@ -77,6 +101,8 @@ export interface AgentAdapter {
   readonly experimental: boolean
 
   detectInstallation(): Promise<InstallationStatus>
+  /** Full runtime status report, including a real readiness check. */
+  getStatusReport(options?: { worktreePath?: string }): Promise<AgentStatusReport>
   checkAvailability(): Promise<AvailabilityStatus>
   getCapabilities(): Promise<AgentCapabilities>
 

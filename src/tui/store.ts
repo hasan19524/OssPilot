@@ -1,133 +1,127 @@
 /**
  * TUI application state (Zustand).
  *
- * All TUI panels read from this store. Business logic never lives here —
- * the store only holds UI-facing state and delegates actions to core services.
+ * Holds conversation messages, the active session, agent runtime status and
+ * the interactive approval bridge. No business logic lives here.
  */
 
 import { create } from "zustand"
 
 export type PanelId = "activity" | "terminal" | "diff" | "tests" | "logs" | "changedFiles"
 export type FocusArea = "main" | "sidebar" | "composer" | "status"
+export type View = "conversation" | "history" | "agents"
+
+export type MessageRole =
+  | "user"
+  | "assistant"
+  | "system"
+  | "tool"
+  | "approval"
+  | "error"
+  | "progress"
+
+export interface Message {
+  id: number | null
+  sessionId: string
+  role: MessageRole
+  content: string
+  metadata: Record<string, unknown> | null
+  createdAt: Date
+}
 
 export interface PendingApproval {
   kind: "approve-plan" | "approve-change" | "approve-commit" | "approve-pr" | "cancel"
-  /** Human-readable prompt shown in the approval dialog. */
   prompt: string
-  /** Extra context lines shown under the prompt. */
   details: string[]
-  /** Options the user can pick; the first is the confirm option. */
   options: string[]
-  /** Contribution this approval belongs to. */
   contributionId?: string
 }
 
+export interface AgentStatus {
+  installed: boolean
+  version: string | null
+  executablePath: string | null
+  state:
+    | "NOT_INSTALLED"
+    | "NOT_AUTHENTICATED"
+    | "STARTING"
+    | "CONNECTING"
+    | "CONNECTED"
+    | "GENERATING"
+    | "IDLE"
+    | "ERROR"
+    | "DISCONNECTED"
+  provider: string | null
+  model: string | null
+  activeSessionId: string | null
+  worktreePath: string | null
+  lastError: string | null
+  limitations: string[]
+}
+
 export interface TuiState {
-  // Layout
   sidebarVisible: boolean
-  composerVisible: boolean
-  activePanel: PanelId
-  expandedPanels: Set<PanelId>
-  focus: FocusArea
-
-  // Contribution context (displayed in right sidebar)
-  currentContributionId: string | null
-  repoName: string
-  repoOwner: string
-  branch: string
-  defaultBranch: string
-  issueNumber: number | null
-  issueTitle: string
-  issueLabels: string[]
-  difficulty: string
-  contributionStage: string
-  agentStatus: string
-  agentModel: string
-  agentSessionStatus: string
-  executionMode: string
-
-  // Activity feed
-  activityLines: string[]
-
-  // Worktree data
-  diffStat: string
-  changedFiles: string[]
-
-  // Pending approval (interactive gate)
+  view: View
+  messages: Message[]
+  sessionId: string | null
+  busy: boolean
+  agentStatus: AgentStatus | null
   pendingApproval: PendingApproval | null
   approvalResolver: ((choice: boolean) => void) | null
-  requestApproval: (approval: PendingApproval) => Promise<boolean>
-  resolveApproval: (choice: "confirm" | "reject") => void
 
-  // Composer
+  // Context shown in the sidebar
+  repoOwner: string
+  repoName: string
+  branch: string
+  contributionStage: string
+  issueNumber: number | null
+  issueTitle: string
+  diffStat: string
+  changedFiles: string[]
   composerInput: string
 
-  // Status
-  connectionStatus: string
-  executionStatus: string
-
   // Actions
-  toggleSidebar: () => void
-  togglePanel: (panel: PanelId) => void
-  setActivePanel: (panel: PanelId) => void
-  setFocus: (area: FocusArea) => void
+  setView: (view: View) => void
+  addMessage: (message: Message) => void
+  setMessages: (messages: Message[]) => void
+  setSessionId: (id: string | null) => void
+  setBusy: (busy: boolean) => void
+  setAgentStatus: (status: AgentStatus | null) => void
+  requestApproval: (approval: PendingApproval) => Promise<boolean>
+  resolveApproval: (choice: "confirm" | "reject") => void
+  setContext: (ctx: Partial<TuiState>) => void
   setComposerInput: (value: string) => void
-  appendActivity: (line: string) => void
-  clearActivity: () => void
-  setContributionContext: (ctx: Partial<TuiState>) => void
-  setDiffData: (data: { diffStat: string; changedFiles: string[] }) => void
 }
 
 export const useTuiStore = create<TuiState>((set) => ({
   sidebarVisible: true,
-  composerVisible: true,
-  activePanel: "activity",
-  expandedPanels: new Set<PanelId>(["activity"]),
-  focus: "main",
-
-  currentContributionId: null,
-  repoName: "",
-  repoOwner: "",
-  branch: "",
-  defaultBranch: "main",
-  issueNumber: null,
-  issueTitle: "",
-  issueLabels: [],
-  difficulty: "",
-  contributionStage: "DISCOVER",
-  agentStatus: "not connected",
-  agentModel: "",
-  agentSessionStatus: "idle",
-  executionMode: "investigation",
-
-  activityLines: [],
-  diffStat: "",
-  changedFiles: [],
+  view: "conversation",
+  messages: [],
+  sessionId: null,
+  busy: false,
+  agentStatus: null,
   pendingApproval: null,
   approvalResolver: null,
+
+  repoOwner: "",
+  repoName: "",
+  branch: "",
+  contributionStage: "DISCOVER",
+  issueNumber: null,
+  issueTitle: "",
+  diffStat: "",
+  changedFiles: [],
   composerInput: "",
 
-  connectionStatus: "disconnected",
-  executionStatus: "idle",
-
-  toggleSidebar: () => set((s) => ({ sidebarVisible: !s.sidebarVisible })),
-  togglePanel: (panel) =>
-    set((s) => {
-      const next = new Set(s.expandedPanels)
-      if (next.has(panel)) next.delete(panel)
-      else next.add(panel)
-      return { expandedPanels: next }
-    }),
-  setActivePanel: (panel) => set({ activePanel: panel }),
-  setFocus: (area) => set({ focus: area }),
-  setComposerInput: (value) => set({ composerInput: value }),
-  appendActivity: (line) => set((s) => ({ activityLines: [...s.activityLines, line] })),
-  clearActivity: () => set({ activityLines: [] }),
-  setContributionContext: (ctx) => set((s) => ({ ...s, ...ctx })),
-  setDiffData: (data) => set({ diffStat: data.diffStat, changedFiles: data.changedFiles }),
+  setView: (view) => set({ view }),
+  addMessage: (message) => set((s) => ({ messages: [...s.messages, message] })),
+  setMessages: (messages) => set({ messages }),
+  setSessionId: (id) => set({ sessionId: id }),
+  setBusy: (busy) => set({ busy }),
+  setAgentStatus: (status) => set({ agentStatus: status }),
   requestApproval: (approval) =>
     new Promise<boolean>((resolve) => {
-      set({ pendingApproval: approval, approvalResolver: resolve, focus: "main" })
+      set({ pendingApproval: approval, approvalResolver: resolve })
     }),
   resolveApproval: (choice) =>
     set((s) => {
@@ -136,7 +130,19 @@ export const useTuiStore = create<TuiState>((set) => ({
       return {
         pendingApproval: null,
         approvalResolver: null,
-        activityLines: [...s.activityLines, choice === "confirm" ? "[approved]" : "[rejected]"],
+        messages: [
+          ...s.messages,
+          {
+            id: null,
+            sessionId: s.sessionId ?? "",
+            role: choice === "confirm" ? "system" : "error",
+            content: choice === "confirm" ? "Approved." : "Rejected.",
+            metadata: null,
+            createdAt: new Date(),
+          },
+        ],
       }
     }),
+  setContext: (ctx) => set((s) => ({ ...s, ...ctx })),
+  setComposerInput: (value) => set({ composerInput: value }),
 }))

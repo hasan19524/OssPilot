@@ -12,6 +12,7 @@ import { agentRegistry, bootstrapAgentRegistry } from "../agents/registry"
 import { ensurePaths, getPaths } from "../config/paths"
 import { loadUserConfig } from "../config/settings"
 import { ContributionManager } from "../core/contributions"
+import { ConversationService } from "../core/conversation"
 import { createGitHubClient } from "../integrations/github/client"
 import { listOpenIssues } from "../integrations/github/issues"
 import { parseGitHubRef } from "../integrations/github/ref"
@@ -45,6 +46,9 @@ const HANDLERS: Record<string, Handler> = {
       "  /diff                                 show current worktree diff stat",
       "  /contribute <owner/repo#N>            run the full contribution workflow",
       "  /cancel                               cancel the active contribution",
+      "  /history, /sessions                   list conversations",
+      "  /new                                  start a new conversation",
+      "  /resume <session-id>                  reopen a conversation",
       'Natural language also works, e.g. "find beginner TypeScript issues".',
     ]),
 
@@ -52,10 +56,15 @@ const HANDLERS: Record<string, Handler> = {
     bootstrapAgentRegistry()
     const lines: string[] = ["Coding agents:"]
     for (const adapter of agentRegistry.list()) {
-      const install = await adapter.detectInstallation()
-      lines.push(
-        `  ${adapter.name}: ${install.installed ? `installed ${install.version ?? ""}` : "NOT INSTALLED"}`,
-      )
+      let status: string
+      try {
+        const report = await adapter.getStatusReport()
+        status = `${report.state} ${report.version ?? ""}`.trim()
+        if (report.lastError) status += ` (last error: ${report.lastError})`
+      } catch (error) {
+        status = `status unavailable: ${String(error)}`
+      }
+      lines.push(`  ${adapter.name}: ${status}`)
       if (adapter.experimental) lines.push("    (experimental)")
     }
     return done(lines)
@@ -72,6 +81,50 @@ const HANDLERS: Record<string, Handler> = {
       return done(lines)
     } finally {
       manager.close()
+    }
+  },
+
+  sessions: async () => {
+    const conv = new ConversationService()
+    try {
+      const list = conv.listSessions({ limit: 30 })
+      if (list.length === 0) return done(["No conversations yet."])
+      const lines = [`Conversations (${list.length}):`]
+      for (const s of list) {
+        lines.push(`  ${s.id}  ${s.title}`)
+        lines.push(
+          `     ${s.repoOwner ? `${s.repoOwner}/${s.repoName}` : "no repository"}  updated ${s.updatedAt.toISOString().slice(0, 16).replace("T", " ")}`,
+        )
+      }
+      return done(lines)
+    } finally {
+      conv.close()
+    }
+  },
+
+  history: async () => {
+    const conv = new ConversationService()
+    try {
+      const list = conv.listSessions({ limit: 30 })
+      if (list.length === 0) return done(["No conversation history yet."])
+      const lines = ["Conversation history:"]
+      for (const s of list) {
+        lines.push(`  ${s.id}  ${s.title}  [${s.status}]`)
+        lines.push(`     updated ${s.updatedAt.toISOString().slice(0, 16).replace("T", " ")}`)
+      }
+      return done(lines)
+    } finally {
+      conv.close()
+    }
+  },
+
+  new: async () => {
+    const conv = new ConversationService()
+    try {
+      const s = conv.createSession({ title: "New conversation" })
+      return done([`Started conversation ${s.id}.`, "It becomes active once you send a message."])
+    } finally {
+      conv.close()
     }
   },
 

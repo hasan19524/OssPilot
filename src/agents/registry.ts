@@ -30,7 +30,22 @@ class AgentRegistry {
 
 export const agentRegistry = new AgentRegistry()
 
-/** Bootstrap: register the adapters available in this release. */
+let ensured = false
+
+/** Bootstrap: register the adapters available in this release (idempotent). */
 export function bootstrapAgentRegistry(): void {
+  if (ensured) return
+  ensured = true
   agentRegistry.register(new OpenCodeAdapter())
+}
+
+/** Idempotent + returns the adapter — safe to call from the TUI. */
+export function ensureAgent() {
+  bootstrapAgentRegistry()
+  return agentRegistry
+}
+
+/** Return the registered adapter for id, or null. */
+export function getAgent(id: string) {
+  return agentRegistry.get(id) ?? null
 }

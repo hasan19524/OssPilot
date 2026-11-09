@@ -174,3 +174,47 @@ export type ContributionEvent = typeof contributionEvents.$inferSelect
 export type NewContributionEvent = typeof contributionEvents.$inferInsert
 export type AgentSession = typeof agentSessions.$inferSelect
 export type Workspace = typeof workspaces.$inferSelect
+
+export const sessions = sqliteTable(
+  "sessions",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    status: text("status").notNull().default("active"),
+    repoOwner: text("repo_owner"),
+    repoName: text("repo_name"),
+    contributionId: text("contribution_id"),
+    externalSessionId: text("external_session_id"),
+    providerId: text("provider_id"),
+    modelId: text("model_id"),
+    workflowState: text("workflow_state"),
+    archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+    updatedAt: integer("updated_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [index("idx_sessions_status").on(t.status, t.id)],
+)
+
+export const sessionMessages = sqliteTable(
+  "session_messages",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    sessionId: text("session_id")
+      .notNull()
+      .references(() => sessions.id, { onDelete: "cascade" }),
+    role: text("role").notNull(), // user | assistant | system | tool | approval | error | progress
+    content: text("content").notNull(),
+    metadata: text("metadata", { mode: "json" }),
+    createdAt: integer("created_at", { mode: "timestamp_ms" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (t) => [index("idx_session_messages_session").on(t.sessionId, t.id)],
+)
+
+export type Session = typeof sessions.$inferSelect
+export type SessionMessage = typeof sessionMessages.$inferSelect
