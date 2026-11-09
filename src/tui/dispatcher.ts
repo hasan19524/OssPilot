@@ -24,6 +24,8 @@ export interface DispatchResult {
   output: string[]
   /** Optional follow-up action the TUI should surface (approval, etc.). */
   action?: { kind: "approve-plan" | "approve-pr" | "cancel"; target?: string }
+  /** Interactive approval the TUI should present to the user. */
+  approval?: import("./store").PendingApproval
 }
 
 type Handler = (args: string[], emit: (line: string) => void) => Promise<DispatchResult>
@@ -41,6 +43,7 @@ const HANDLERS: Record<string, Handler> = {
       "  /agents                               coding agent status",
       "  /status                               active contributions",
       "  /diff                                 show current worktree diff stat",
+      "  /contribute <owner/repo#N>            run the full contribution workflow",
       "  /cancel                               cancel the active contribution",
       'Natural language also works, e.g. "find beginner TypeScript issues".',
     ]),
@@ -243,7 +246,7 @@ const HANDLERS: Record<string, Handler> = {
       await manager.cancel(c.id, "Cancelled from TUI")
       return done([
         `Contribution ${c.id} cancelled.`,
-        "Worktree and clone were preserved — delete them manually if unwanted.",
+        "Worktree and clone were preserved. The branch was never pushed, so no external action was taken.",
       ])
     } catch (error) {
       return done([`Cancel failed: ${String(error)}`])
@@ -251,6 +254,51 @@ const HANDLERS: Record<string, Handler> = {
       manager.close()
     }
   },
+}
+
+/**
+ * `/contribute owner/repo#N` — drives the full lifecycle through the shared
+ * runner, using the TUI approval store as the approval gate.
+ *
+ * Registered separately because it needs access to the approval bridge.
+ */
+export async function dispatchContribution(
+  reference: string,
+  store: {
+    requestApproval: (approval: import("./store").PendingApproval) => Promise<boolean>
+    appendActivity: (line: string) => void
+  },
+): Promise<DispatchResult> {
+  const { runContribution } = await import("../core/contribution-runner")
+  const lines: string[] = []
+  try {
+    const result = await runContribution({
+      reference,
+      approver: {
+        ask: async (prompt, details, options) =>
+          store.requestApproval({
+            kind: "approve-plan",
+            prompt,
+            details,
+            options: options ?? ["Confirm", "Reject"],
+          }),
+      },
+      events: {
+        onOutput: (line) => {
+          lines.push(line)
+          store.appendActivity(line)
+        },
+        onProgress: (stage, detail) => store.appendActivity(`[${stage}] ${detail}`),
+      },
+    })
+    lines.push(`Contribution ${result.contributionId} finished at stage ${result.stage}.`)
+    if (result.prUrl) lines.push(`PR: ${result.prUrl}`)
+    else lines.push("No PR was created (not approved or skipped).")
+    return { output: lines }
+  } catch (error) {
+    lines.push(`Contribution failed: ${String(error)}`)
+    return { output: lines }
+  }
 }
 
 const NATURAL_LANGUAGE_MAP: Array<{ pattern: RegExp; command: string }> = [

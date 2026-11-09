@@ -1,87 +1,90 @@
 # CLI Reference
 
+Command mode and the TUI use the same application core. Every command below was verified
+against the built binary.
+
 ## Commands
 
-### `osspilot` (default)
+### `osspilot`
 Launch the interactive TUI.
 
 ### `osspilot doctor`
-Check local environment health.
+Check the local environment.
 
-**Options:**
-- `--json` — Output machine-readable JSON
+**Options:** `--json` — machine-readable output.
+**Exit:** non-zero if any check fails.
+
+### `osspilot setup`
+First-run setup: reports required and optional components.
+**Options:** `--json`.
 
 ### `osspilot discover`
-Discover open-source contribution opportunities.
+Search GitHub repositories for contribution opportunities.
 
-**Options:**
-- `-l, --language <lang>` — Filter by programming language
-- `-q, --query <query>` — Search query (default: "good first issue")
-- `--limit <n>` — Max results (default: 10)
+| Option | Meaning | Default |
+|---|---|---|
+| `-l, --language <lang>` | Filter by language | none |
+| `-q, --query <query>` | Search query | `good first issue` |
+| `--limit <n>` | Max results | `10` |
 
 ### `osspilot issue <reference>`
-Analyse a GitHub issue.
-
-**Reference format:** `owner/repository#number`
-
-**Example:** `osspilot issue prettier/prettier#20408`
-
-### `osspilot contribute <reference>`
-Start a contribution workflow.
-
-**Reference format:** `owner/repository#number`
-
-**Example:** `osspilot contribute prettier/prettier#20408`
-
-### `osspilot status`
-Show active contributions and their current stage.
-
-### `osspilot agents`
-Inspect coding-agent integration status.
-
-### `osspilot config`
-Show or edit user configuration.
-
-**Subcommands:**
-- `config show` — Print current config
-- `config path` — Print config file path
-- `config reset` — Reset config to defaults
-- `config auth <provider>` — Authenticate (github or bharatcode)
-
-### `osspilot history`
-View past contributions.
-
-### `osspilot prs [reference]`
-Monitor pull requests from your contributions.
-
-**Usage:**
-- `osspilot prs` — all tracked PRs
-- `osspilot prs owner/repo#123` — specific PR status, comments, reviews, CI checks
+Analyse an issue (`owner/repo#number`).
 
 ### `osspilot research <reference>`
-Research an issue and repository: project health, issue intelligence, contribution suitability, repository deep inspection, contribution requirements.
+Project health, issue intelligence, suitability, repository deep inspection,
+contribution requirements.
 
-**Reference format:** `owner/repository` or `owner/repository#123`
+| Option | Meaning |
+|---|---|
+| `--no-clone` | Skip local repository inspection |
 
-**Options:**
-- `--no-clone` — skip local repository inspection
+### `osspilot contribute <reference>`
+Run the full contribution workflow with approval gates. The CLI and TUI share one
+implementation.
 
-**Example:**
-```bash
-osspilot research prettier/prettier#20408
-osspilot research octocat/Hello-World --no-clone
-```
+### `osspilot prs [reference]`
+Monitor pull requests from your contributions. With a reference, a full PR report
+(status, comments, reviews, CI checks).
 
 ### `osspilot revise <reference>`
-Analyse maintainer feedback on a PR and prepare a revision plan (requires approval before delegating to OpenCode; never posts replies automatically).
+Retrieve maintainer feedback, classify reviews and comments, build a revision plan.
+Requires approval before delegating to OpenCode. Never posts a reply.
 
-**Reference format:** `owner/repository#PR-number`
+### `osspilot resume [contribution-id] [action]`
+Inspect interrupted contributions, or apply a recovery action.
 
-## Exit Codes
+Actions: `resume`, `inspect`, `restart`, `abandon`.
 
-- `0` — Success
-- `1` — Error (check stderr for details)
+| Option | Meaning |
+|---|---|
+| `--json` | machine-readable list |
+| `--confirm` | Required by `abandon` |
 
-## Environment Variables
+`abandon` without `--confirm` is refused and changes nothing.
 
-See README.md for the full list.
+### `osspilot status`
+Active contributions and their stage.
+
+### `osspilot history`
+Past contributions.
+
+### `osspilot agents`
+Registered coding agents and detection results.
+
+### `osspilot config [subcommand]`
+Show or edit configuration.
+
+| Subcommand | Meaning |
+|---|---|
+| `show` | print config (default) |
+| `path` | config file path |
+| `reset` | restore defaults |
+| `auth <github\|bharatcode>` | store a credential |
+
+## Environment variables
+
+See `docs/PROVIDERS.md` and `docs/SETUP.md`.
+
+## Exit codes
+
+`0` success. `1` error — the message on stderr states what failed and what to do.

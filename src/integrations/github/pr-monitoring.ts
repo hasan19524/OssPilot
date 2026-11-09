@@ -17,6 +17,8 @@ export interface PrStatus {
   comments: PrComment[]
   reviews: PrReview[]
   checks: PrCheck[]
+  /** Sections that failed to load — never silently empty. */
+  partialFailures: string[]
   lastUpdated: string
 }
 
@@ -48,76 +50,91 @@ export async function getPrStatus(
   repo: string,
   prNumber: number,
 ): Promise<PrStatus> {
-  // Fetch PR details
+  // Fetch PR details — this one must succeed; a missing PR is a hard failure.
   const prRes = await client.octokit.rest.pulls.get({ owner, repo, pull_number: prNumber })
   const pr = prRes.data
 
-  // Fetch issue comments (conversation)
-  const commentsRes = await client.octokit.rest.issues.listComments({
-    owner,
-    repo,
-    issue_number: prNumber,
-    per_page: 50,
-  })
+  // Auxiliary sections: a failure in one section must not kill the whole report.
+  const partialFailures: string[] = []
 
-  // Fetch review comments (inline)
-  const reviewCommentsRes = await client.octokit.rest.pulls.listReviewComments({
-    owner,
-    repo,
-    pull_number: prNumber,
-    per_page: 50,
-  })
-
-  // Fetch reviews
-  const reviewsRes = await client.octokit.rest.pulls.listReviews({
-    owner,
-    repo,
-    pull_number: prNumber,
-    per_page: 50,
-  })
-
-  // Fetch check runs (CI status)
-  let checks: PrCheck[] = []
-  try {
-    const checksRes = await client.octokit.rest.checks.listForRef({
-      owner,
-      repo,
-      ref: pr.head.ref,
-      per_page: 50,
-    })
-    checks = checksRes.data.check_runs.map((run) => ({
-      name: run.name,
-      status: run.status,
-      conclusion: run.conclusion,
-    }))
-  } catch {
-    // Checks may not be available
+  const fetchComments = async (): Promise<PrComment[]> => {
+    try {
+      const commentsRes = await client.octokit.rest.issues.listComments({
+        owner,
+        repo,
+        issue_number: prNumber,
+        per_page: 50,
+      })
+      const reviewCommentsRes = await client.octokit.rest.pulls.listReviewComments({
+        owner,
+        repo,
+        pull_number: prNumber,
+        per_page: 50,
+      })
+      const conv = commentsRes.data.map((c) => ({
+        id: c.id,
+        author: c.user?.login ?? null,
+        body: c.body ?? "",
+        createdAt: c.created_at,
+        isReviewComment: false,
+      }))
+      const inline = reviewCommentsRes.data.map((c) => ({
+        id: c.id,
+        author: c.user?.login ?? null,
+        body: c.body ?? "",
+        createdAt: c.created_at,
+        isReviewComment: true,
+      }))
+      return [...conv, ...inline].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    } catch (error) {
+      partialFailures.push(`comments: ${(error as Error).message}`)
+      return []
+    }
   }
 
-  const comments: PrComment[] = [
-    ...commentsRes.data.map((c) => ({
-      id: c.id,
-      author: c.user?.login ?? null,
-      body: c.body ?? "",
-      createdAt: c.created_at,
-      isReviewComment: false,
-    })),
-    ...reviewCommentsRes.data.map((c) => ({
-      id: c.id,
-      author: c.user?.login ?? null,
-      body: c.body ?? "",
-      createdAt: c.created_at,
-      isReviewComment: true,
-    })),
-  ].sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+  const fetchReviews = async (): Promise<PrReview[]> => {
+    try {
+      const reviewsRes = await client.octokit.rest.pulls.listReviews({
+        owner,
+        repo,
+        pull_number: prNumber,
+        per_page: 50,
+      })
+      return reviewsRes.data.map((r) => ({
+        id: r.id,
+        author: r.user?.login ?? null,
+        state: r.state,
+        body: r.body ?? "",
+        submittedAt: r.submitted_at ?? "",
+      }))
+    } catch (error) {
+      partialFailures.push(`reviews: ${(error as Error).message}`)
+      return []
+    }
+  }
 
-  const reviews: PrReview[] = reviewsRes.data.map((r) => ({
-    id: r.id,
-    author: r.user?.login ?? null,
-    state: r.state,
-    body: r.body ?? "",
-    submittedAt: r.submitted_at ?? "",
-  }))
+  const fetchChecks = async (): Promise<PrCheck[]> => {
+    try {
+      const checksRes = await client.octokit.rest.checks.listForRef({
+        owner,
+        repo,
+        ref: pr.head.ref,
+        per_page: 50,
+      })
+      return checksRes.data.check_runs.map((run) => ({
+        name: run.name,
+        status: run.status,
+        conclusion: run.conclusion,
+      }))
+    } catch (error) {
+      partialFailures.push(`checks: ${(error as Error).message}`)
+      return []
+    }
+  }
+
+  const comments = await fetchComments()
+  const reviews = await fetchReviews()
+  const checks = await fetchChecks()
 
   // Determine merge status
   let merged = false
@@ -135,6 +152,7 @@ export async function getPrStatus(
     comments,
     reviews,
     checks,
+    partialFailures,
     lastUpdated: pr.updated_at,
   }
 }
@@ -197,5 +215,7 @@ export function summarizePrStatus(status: PrStatus): string {
   if (status.comments.length > 0) parts.push(`Comments: ${status.comments.length}`)
   const failedChecks = status.checks.filter((c) => c.conclusion === "failure")
   if (failedChecks.length > 0) parts.push(`CI: ${failedChecks.length} failed`)
+  if (status.partialFailures.length > 0)
+    parts.push(`Partial failures: ${status.partialFailures.join("; ")}`)
   return parts.join("\n")
 }

@@ -131,6 +131,9 @@ export function formatFeedbackAnalysis(analysis: FeedbackAnalysis): string {
       `  CI: ${failedChecks.length} failing check(s): ${failedChecks.map((c) => c.name).join(", ")}`,
     )
   }
+  for (const failure of analysis.pr.partialFailures) {
+    lines.push(`  ! partial failure: ${failure}`)
+  }
   if (analysis.items.length === 0) {
     lines.push("\n  No comments or reviews found.")
     lines.push("  OSSPilot never replies to maintainers automatically.")

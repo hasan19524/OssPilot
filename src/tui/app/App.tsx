@@ -65,6 +65,20 @@ export function App() {
   }, [store])
 
   useKeyboard((key) => {
+    // Approval gate takes priority over all other keybinds.
+    if (store.pendingApproval) {
+      if (key.name === "y") {
+        store.resolveApproval("confirm")
+        return
+      }
+      if (key.name === "n") {
+        store.resolveApproval("reject")
+        return
+      }
+      // Swallow other keys while a gate is open (no destructive bypass).
+      return
+    }
+
     if (key.ctrl && key.name === "c") {
       // Safe interrupt — never kills the process abruptly.
       store.appendActivity("[interrupt requested]")
@@ -114,6 +128,7 @@ export function App() {
       </box>
       {store.composerVisible && <Composer />}
       <StatusBar />
+      <ApprovalDialog />
     </box>
   )
 }
@@ -236,17 +251,27 @@ function Composer() {
   const input = useTuiStore((s) => s.composerInput)
   const setInput = useTuiStore((s) => s.setComposerInput)
   const appendActivity = useTuiStore((s) => s.appendActivity)
+  const requestApproval = useTuiStore((s) => s.requestApproval)
   const [busy, setBusy] = useState(false)
 
   const submit = async () => {
     const text = input.trim()
     if (!text || busy) return
-    appendActivity(`› ${text}`)
+    appendActivity(`> ${text}`)
     setInput("")
     setBusy(true)
     try {
-      const result = await dispatch(text, (line) => appendActivity(line))
-      for (const line of result.output) appendActivity(line)
+      // Route /contribute through the shared runner with interactive approval.
+      if (text.startsWith("/contribute")) {
+        const refText = text.replace(/^\/contribute\s*/, "")
+        const { dispatchContribution } = await import("../dispatcher")
+        const result = await dispatchContribution(refText, { requestApproval, appendActivity })
+        for (const line of result.output) appendActivity(line)
+      } else {
+        const result = await dispatch(text, (line) => appendActivity(line))
+        for (const line of result.output) appendActivity(line)
+        if (result.approval) requestApproval(result.approval)
+      }
     } catch (error) {
       appendActivity(`Error: ${String(error)}`)
     } finally {
@@ -264,6 +289,37 @@ function Composer() {
         placeholder="Ask OSSPilot, or /help for commands"
         style={{ flexGrow: 1 }}
       />
+    </box>
+  )
+}
+
+function ApprovalDialog() {
+  const approval = useTuiStore((s) => s.pendingApproval)
+  if (!approval) return null
+  const confirm = approval.options[0] ?? "Confirm"
+  const reject = approval.options[1] ?? "Reject"
+  return (
+    <box
+      style={{
+        position: "absolute",
+        left: 2,
+        right: 2,
+        top: 3,
+        border: true,
+        padding: 1,
+        backgroundColor: "#0d1117",
+      }}
+    >
+      <text fg="#e5e7eb">APPROVAL REQUIRED</text>
+      <text fg="#d1d5db">{approval.prompt}</text>
+      {approval.details.map((d) => (
+        <text key={d} fg="#9ca3af">
+          {d}
+        </text>
+      ))}
+      <text fg="#6b7280">
+        Press y to "{confirm}", n to "{reject}". Nothing happens until you choose.
+      </text>
     </box>
   )
 }

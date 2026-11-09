@@ -1,94 +1,82 @@
-# OSSPilot — What You Need To Do
+# Setup
 
-## 1. Install prerequisites
+First-run setup and configuration. `osspilot setup` automates the checks below.
 
-- **Bun >= 1.4.0** — `npm i -g bun` (or download from https://bun.sh)
-- **Git** — https://git-scm.com
-- **gh CLI** (optional, for token bootstrap) — https://cli.github.com
-- **OpenCode** (for agent integration) — https://opencode.ai
+## Prerequisites
 
-Verify: `bun --version`, `git --version`, `opencode --version`
+| Component | Required | Install |
+|---|---|---|
+| Git | Yes | https://git-scm.com |
+| OpenCode | For code implementation | https://opencode.ai |
+| Bun >= 1.4 | Only to build from source | `npm i -g bun` |
 
-## 2. Build OSSPilot
-
-```bash
-cd D:\projects\personal\Osspilot
-bun install
-bun run build          # produces dist/osspilot.exe
-```
-
-## 3. Configure credentials
-
-### GitHub (choose one)
-
-**Option A — Device flow (recommended):**
-```bash
-osspilot config auth github
-```
-Follow the browser prompt. Token stored in OS keyring (Windows Credential Manager).
-
-**Option B — Environment variable:**
-```bash
-setx OSSPILOT_GITHUB_TOKEN "ghp_your_token_here"
-```
-
-**Option C — Reuse gh CLI:**
-If `gh auth status` shows logged in, OSSPilot auto-bootstraps (with consent).
-
-### BharatCode (optional, for AI features)
-
-1. Get a key at https://bharatcode.ai/account
-2. Run:
-```bash
-osspilot config auth bharatcode
-```
-Or set `OSSPILOT_BHARATCODE_API_KEY` env var.
-
-Without a key, OSSPilot works in GitHub-only mode (no AI analysis).
-
-## 4. Configure preferences
+## First-run check
 
 ```bash
-osspilot config                    # show current
-osspilot config reset              # restore defaults
+osspilot setup
 ```
 
-Edit `~/.osspilot/config/config.json` to set:
-- `skills`: your tech skills (e.g. `["typescript", "python", "react"]`) for skill matching
-- `preferredAgent`: "opencode" (only option in v1)
-- `bharatcodeModel`: "qwen-3.8-27b" (default) or "deepseek-v4.1-flash" (Pro)
+Reported contents, each labelled required or optional:
 
-## 5. Verify setup
+1. **Git** — required.
+2. **OpenCode** — required for implementation; research and discovery work without it.
+3. **GitHub** — optional; `osspilot config auth github`.
+4. **AI provider** — optional; `osspilot config auth bharatcode`.
+5. **Web research** — optional; detected, never installed automatically.
+
+`setup --json` emits the same report as JSON.
+
+## Configuration
+
+Preferences live in `~/.osspilot/config/config.json`:
 
 ```bash
-osspilot doctor
+osspilot config            # show
+osspilot config reset      # restore defaults
+osspilot config path       # file path
 ```
 
-All checks should pass (warnings for unset tokens are OK if you chose not to configure them).
+| Field | Meaning |
+|---|---|
+| `skills` | your technical skills, matched against issue text |
+| `preferredAgent` | registry id of the coding agent (`opencode`) |
+| `bharatcodeBaseUrl`, `bharatcodeModel` | provider endpoint and model |
+| `logLevel`, `logSink` | logging |
 
-## 6. Use it
+## Secrets
 
-```bash
-osspilot                              # launch TUI
-osspilot discover                     # find contribution opportunities
-osspilot issue owner/repo#123         # analyse an issue
-osspilot contribute owner/repo#123    # full workflow with approval gates
-osspilot status                       # active contributions
-osspilot history                      # past contributions
-osspilot agents                       # agent integration status
+Never in config files, never in logs.
+
+| Provider | Command / variable |
+|---|---|
+| GitHub | `osspilot config auth github` or `OSSPILOT_GITHUB_TOKEN` |
+| BharatCode | `osspilot config auth bharatcode` or `OSSPILOT_BHARATCODE_API_KEY` |
+| OpenAI | `OSSPILOT_OPENAI_API_KEY` |
+| Anthropic | `OSSPILOT_ANTHROPIC_API_KEY` |
+
+Storage order: OS keyring → encrypted file → environment variable. A migration moves
+legacy-encrypted credentials to a fresh key without destroying them.
+
+## Skills
+
+```json
+{ "skills": ["typescript", "react", "python", "rust"] }
 ```
 
-## 7. What's NOT needed from you
+The suitability score compares these against the issue text. Leave the list empty and
+the skill factor is reported as `unavailable` rather than guessed.
 
-- No database setup (SQLite is embedded)
-- No Redis/Docker/PostgreSQL (all local)
-- No cloud deployment (runs entirely on your machine)
-- No manual migration (auto-applied on first run)
+## Data directory
 
-## 8. Troubleshooting
+`~/.osspilot/`, or `OSSPILOT_HOME` in tests and portable installs.
 
-- `osspilot doctor` — checks everything
-- Logs: `~/.osspilot/logs/osspilot.log`
-- Reset: delete `~/.osspilot/` and re-run
-- OpenCode not found: ensure `opencode` is on PATH
-- TUI rendering issues: try Windows Terminal instead of VS Code integrated terminal
+## What works without what
+
+| Without | Still works |
+|---|---|
+| GitHub token | local config, agent status, doctor, setup |
+| LLM provider | research, health, intelligence, suitability, repository inspection |
+| OpenCode | everything except implementation |
+
+Implementation, and anything that touches GitHub or an LLM, never pretends to work when
+its dependency is missing.

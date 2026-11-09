@@ -1,0 +1,82 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag, e.g. 0.1.0"
+        required: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun run test
+      - run: bun run build:js
+
+  build:
+    needs: test
+    strategy:
+      matrix:
+        include:
+          - target: bun-windows-x64
+            os: windows-latest
+            artifact: osspilot-windows-x64.exe
+          - target: bun-linux-x64
+            os: ubuntu-latest
+            artifact: osspilot-linux-x64
+          - target: bun-darwin-arm64
+            os: macos-latest
+            artifact: osspilot-darwin-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install
+      - name: Regenerate bundled migrations
+        run: python scripts/generate-migrations.py
+      - name: Compile standalone executable
+        run: bun build src/index.ts --compile --target=${{ matrix.target }} --outfile dist/${{ matrix.artifact }}
+        shell: bash
+      - name: Check bundle integrity (report embedded modules and native deps)
+        run: |
+          ls -la dist/
+          echo "NOTE: better-sqlite3 ships prebuilt native bindings per-platform."
+          echo "If a build fails on a target, run the build on that OS or bundle the native module explicitly."
+        shell: bash
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/${{ matrix.artifact }}
+          if-no-files-found: error
+
+  checksums:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist/
+      - name: Generate SHA-256 checksums
+        run: |
+          cd dist
+          find . -type f -exec sha256sum {} \; > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+        shell: bash
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SHA256SUMS
+          path: dist/SHA256SUMS.txt

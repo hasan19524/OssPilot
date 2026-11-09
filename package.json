@@ -22,7 +22,10 @@
     "doctor": "bun run src/index.ts doctor",
     "build": "bun build src/index.ts --compile --outfile dist/osspilot",
     "build:js": "bun build src/index.ts --outdir dist",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "prebuild": "python scripts/generate-migrations.py",
+    "release:build": "bash scripts/build-release.sh",
+    "verify:install": "bash scripts/verify-install.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.6.0",

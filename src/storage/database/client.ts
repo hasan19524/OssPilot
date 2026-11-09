@@ -5,13 +5,12 @@
  * WAL mode for safe concurrent reads while the TUI and agent callbacks run.
  */
 
-import { chmodSync, existsSync, mkdirSync } from "node:fs"
-import { dirname, join } from "node:path"
+import { chmodSync, mkdirSync } from "node:fs"
+import { dirname } from "node:path"
 import BetterSqlite3 from "better-sqlite3"
 import { type BetterSQLite3Database, drizzle } from "drizzle-orm/better-sqlite3"
-import { migrate } from "drizzle-orm/better-sqlite3/migrator"
 import { getPaths } from "../../config/paths"
-import { migrationsFolder } from "./migrations-folder"
+import { runMigrations } from "./migrations"
 import * as schema from "./schema"
 
 export interface Database extends BetterSQLite3Database<typeof schema> {
@@ -19,26 +18,30 @@ export interface Database extends BetterSQLite3Database<typeof schema> {
 }
 
 export interface OpenDatabaseOptions {
-  /** Overrides the default ~/.osspilot/database/state.osspilot.db (tests use ":memory:"). */
+  /** Override the default ~/.osspilot/database/state.osspilot.db (tests use ":memory:"). */
   file?: string
+  /** Apply migrations (default: true). */
   runMigrations?: boolean
 }
 
 export function openDatabase(options: OpenDatabaseOptions = {}): Database {
-  const file = options.file ?? defaultDatabaseFile()
+  const file = options.file ?? getPaths().databaseFile
   if (file !== ":memory:") {
     mkdirSync(dirname(file), { recursive: true })
   }
 
   const sqlite = new BetterSqlite3(file)
-  // Restrict file permissions on Unix (owner-only)
+
+  // Restrict permissions on Unix. chmod is a no-op on Windows, where ACLs
+  // already apply to the user profile.
   if (process.platform !== "win32") {
     try {
       chmodSync(file, 0o600)
     } catch {
-      // Ignore chmod errors
+      // Ignore: chmod may be unsupported on some filesystems.
     }
   }
+
   sqlite.pragma("journal_mode = WAL")
   sqlite.pragma("foreign_keys = ON")
   sqlite.pragma("busy_timeout = 5000")
@@ -52,23 +55,9 @@ export function openDatabase(options: OpenDatabaseOptions = {}): Database {
   return db
 }
 
+export { runMigrations, schema }
+
 export function runTransaction<T>(db: Database, fn: () => T): T {
   const sqlite = (db as unknown as { $client: { transaction: (fn: () => T) => () => T } }).$client
-  const txn = sqlite.transaction(fn)
-  return txn()
+  return sqlite.transaction(fn)()
 }
-
-export function runMigrations(db: Database): void {
-  const folder = migrationsFolder()
-  if (!existsSync(join(folder, "meta", "_journal.json"))) {
-    // No migrations generated yet — schema is created by tests/first run.
-    return
-  }
-  migrate(db, { migrationsFolder: folder })
-}
-
-function defaultDatabaseFile(): string {
-  return getPaths().databaseFile
-}
-
-export { schema }

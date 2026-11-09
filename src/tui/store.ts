@@ -10,6 +10,18 @@ import { create } from "zustand"
 export type PanelId = "activity" | "terminal" | "diff" | "tests" | "logs" | "changedFiles"
 export type FocusArea = "main" | "sidebar" | "composer" | "status"
 
+export interface PendingApproval {
+  kind: "approve-plan" | "approve-change" | "approve-commit" | "approve-pr" | "cancel"
+  /** Human-readable prompt shown in the approval dialog. */
+  prompt: string
+  /** Extra context lines shown under the prompt. */
+  details: string[]
+  /** Options the user can pick; the first is the confirm option. */
+  options: string[]
+  /** Contribution this approval belongs to. */
+  contributionId?: string
+}
+
 export interface TuiState {
   // Layout
   sidebarVisible: boolean
@@ -40,6 +52,12 @@ export interface TuiState {
   // Worktree data
   diffStat: string
   changedFiles: string[]
+
+  // Pending approval (interactive gate)
+  pendingApproval: PendingApproval | null
+  approvalResolver: ((choice: boolean) => void) | null
+  requestApproval: (approval: PendingApproval) => Promise<boolean>
+  resolveApproval: (choice: "confirm" | "reject") => void
 
   // Composer
   composerInput: string
@@ -85,6 +103,8 @@ export const useTuiStore = create<TuiState>((set) => ({
   activityLines: [],
   diffStat: "",
   changedFiles: [],
+  pendingApproval: null,
+  approvalResolver: null,
   composerInput: "",
 
   connectionStatus: "disconnected",
@@ -105,4 +125,18 @@ export const useTuiStore = create<TuiState>((set) => ({
   clearActivity: () => set({ activityLines: [] }),
   setContributionContext: (ctx) => set((s) => ({ ...s, ...ctx })),
   setDiffData: (data) => set({ diffStat: data.diffStat, changedFiles: data.changedFiles }),
+  requestApproval: (approval) =>
+    new Promise<boolean>((resolve) => {
+      set({ pendingApproval: approval, approvalResolver: resolve, focus: "main" })
+    }),
+  resolveApproval: (choice) =>
+    set((s) => {
+      const resolver = s.approvalResolver
+      if (resolver) resolver(choice === "confirm")
+      return {
+        pendingApproval: null,
+        approvalResolver: null,
+        activityLines: [...s.activityLines, choice === "confirm" ? "[approved]" : "[rejected]"],
+      }
+    }),
 }))

@@ -48,24 +48,23 @@ export async function resolveCommand(command: string): Promise<string> {
         const found = findExeInNodeModules(join(npmPrefix, "node_modules"), command)
         if (found) resolved = found
       }
-      // As a last resort, also try the global npm root via env vars.
-      if (resolved === command) {
-        const globalRoot = process.env.APPDATA
-          ? join(process.env.APPDATA, "npm", "node_modules")
-          : null
-        if (globalRoot) {
-          const found = findExeInNodeModules(globalRoot, command)
-          if (found) resolved = found
-        }
-      }
     }
   } catch {
-    // `where` unavailable — try common env-based locations.
-    const globalRoot = process.env.APPDATA ? join(process.env.APPDATA, "npm", "node_modules") : null
-    if (globalRoot) {
-      const found = findExeInNodeModules(globalRoot, command)
-      if (found) resolved = found
-    }
+    // `where` unavailable.
+  }
+
+  // Global npm root via APPDATA (independent of PATH).
+  const globalRoot = process.env.APPDATA ? join(process.env.APPDATA, "npm", "node_modules") : null
+  if (resolved === command && globalRoot) {
+    const found = findExeInNodeModules(globalRoot, command)
+    if (found) resolved = found
+  }
+
+  // npm-global opencode installs under @opencode/cli with an extension-less
+  // shim whose binary differs from the command name, so check it explicitly.
+  if (resolved === command && command === "opencode" && globalRoot) {
+    const known = join(globalRoot, "@opencode", "cli", "bin", "opencode.exe")
+    if (existsSync(known)) resolved = known
   }
 
   cache.set(command, resolved)
@@ -88,8 +87,6 @@ function findExeInNodeModules(root: string, command: string): string | null {
         for (const pkg of pkgs) {
           if (!pkg.isDirectory()) continue
           candidates.push(join(scopeDir, pkg.name, "bin", `${command}.exe`))
-          // Known global tool names whose binary differs from the CLI name.
-          candidates.push(join(scopeDir, pkg.name, "bin", "opencode.exe"))
         }
       } catch {
         // ignore

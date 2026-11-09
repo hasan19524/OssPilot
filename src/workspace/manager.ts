@@ -33,6 +33,8 @@ const SAFE_GIT_FLAGS = new Set([
   "--all",
   "--prune",
   "--oneline",
+  "--is-inside-work-tree",
+  "--initial-branch=main",
   "-1",
   "-b",
   "-B",

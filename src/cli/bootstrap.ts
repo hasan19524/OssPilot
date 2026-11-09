@@ -1,10 +1,3 @@
-/**
- * Commander program bootstrap.
- *
- * Commands and the TUI share the same application core: services in src/core,
- * state in src/storage. Commands never reimplement business logic.
- */
-
 import { Command } from "commander"
 import { launchTui } from "../tui/launch"
 import { registerAgentsCommand } from "./commands/agents"
@@ -16,7 +9,9 @@ import { registerHistoryCommand } from "./commands/history"
 import { registerIssueCommand } from "./commands/issue"
 import { registerPrsCommand } from "./commands/prs"
 import { registerResearchCommand } from "./commands/research"
+import { registerResumeCommand } from "./commands/resume"
 import { registerReviseCommand } from "./commands/revise"
+import { registerSetupCommand } from "./commands/setup"
 import { registerStatusCommand } from "./commands/status"
 
 export async function runProgram(argv: string[]): Promise<void> {
@@ -32,6 +27,7 @@ export async function runProgram(argv: string[]): Promise<void> {
   })
 
   registerDoctorCommand(program)
+  registerSetupCommand(program)
   registerAgentsCommand(program)
   registerStatusCommand(program)
   registerConfigCommand(program)
@@ -41,6 +37,7 @@ export async function runProgram(argv: string[]): Promise<void> {
   registerContributeCommand(program)
   registerPrsCommand(program)
   registerResearchCommand(program)
+  registerResumeCommand(program)
   registerReviseCommand(program)
 
   await program.parseAsync(argv)
