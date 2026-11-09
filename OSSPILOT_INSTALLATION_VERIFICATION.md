@@ -1,66 +1,64 @@
-# OSSPilot Installation Verification
+# OSSPilot — Installation Verification
 
-## Status: VERIFIED on Windows 11
+## Status: **PASS on Windows 11**
 
-## Build verification
+## Binary
 
-```
-$ bun run build
-  [182ms]  bundle  895 modules
-  [656ms]  compile  dist/osspilot.exe
-```
-
-Single-file executable, ~60-90 MB, no external runtime dependency on the target machine.
-
-## Launch verification
-
-| Command | Result |
+| Property | Value |
 |---|---|
-| `.\dist\osspilot.exe doctor` | ✅ 0 failures, 0 warnings |
-| `.\dist\osspilot.exe --version` | ✅ 0.1.0 |
-| `.\dist\osspilot.exe discover --language typescript --limit 3` | ✅ live GitHub results |
-| `.\dist\osspilot.exe issue octocat/Hello-World#1` | ✅ live issue |
-| `.\dist\osspilot.exe research octocat/Spoon-Knife#1 --no-clone` | ✅ full 4-part report |
-| `.\dist\osspilot.exe research octocat/Spoon-Knife#1` | ✅ including local clone + requirements |
-| `.\dist\osspilot.exe prs` | ✅ "No pull requests tracked yet" |
-| `.\dist\osspilot.exe agent`/`status`/`history` | ✅ work |
-| `.\dist\osspilot.exe` (TUI) | ✅ renders; does not require a browser |
+| Command | `bun build src/index.ts --compile --outfile dist/osspilot` |
+| Modules bundled | 905 |
+| Result size | ~60–90 MB |
+| Runtime requirement | none (Bun is embedded) |
 
-## Data paths
+## Clean-home verification
 
-```
-%USERPROFILE%\.osspilot\
-  config\config.json          (validated user config)
-  config\credentials.enc      (fallback credential store, 0600 on Unix)
-  database\state.osspilot.db   (SQLite, WAL)
-  repositories\                (clones)
-  worktrees\                   (per-contribution worktrees)
-  sessions\ logs\ cache\
+Run with `OSSPILOT_HOME` at a fresh empty directory:
+
+```powershell
+$env:OSSPILOT_HOME = "$env:TEMP\clean-test\.osspilot"
 ```
 
-Keyring credentials verified present (`doctor` → `github-token configured (OS keyring)`).
-
-## Cross-runtime verification
-
-The same source was exercised under:
-- **Bun** (compiled binary and `bun run`)
-- **Node/Vitest** (82 tests)
-
-The Windows executable-resolution bug found here (`resolveCommand`) is fixed, and
-OpenCode detection passes in **both** runtimes.
-
-## Requirements on the user's machine
-
-| Tool | Required | Notes |
+| Check | Result | Detail |
 |---|---|---|
-| Bun ≥ 1.4 | yes | to build; not required to run the compiled binary |
-| Git | yes | resolved via `where git` |
-| OpenCode | for coding execution | everything else works without it |
-| GitHub token | for GitHub features | OS keyring / env / gh bootstrap |
-| LLM provider key | for AI features | BharatCode, OpenAI, Anthropic, Google, NVIDIA, OpenRouter, Ollama |
+| `doctor` | **PASS** | 0 failures, 0 warnings; created the full directory tree |
+| `setup` | **PASS** | Git OK, OpenCode OK, GitHub OK, BharatCode OK, agent-browser 0.39.2 detected |
+| `agents` | **PASS** | `OpenCode installed opencode v2.2.5` |
+| `history` | **PASS** | "No contributions recorded yet." |
+| `resume` | **PASS** | "No interrupted contributions found." |
+| `resume <id> bogus` | **PASS (rejected)** | usage error, exit 1 |
+| `resume <id> abandon` (no `--confirm`) | **PASS (rejected)** | refused, exit 1 |
+| Table creation | **PASS** | all 10 tables from the embedded manifest |
+| Idempotent restart | **PASS** | no duplicate-table errors |
 
-## What was NOT verified
+## Bug found and fixed by this test
 
-- Clean-machine install (no pre-existing Bun/Node on a fresh Windows VM)
-- macOS / Linux execution
-- Single-binary compilation inlining SQLite native module on non-Windows targets
+**Standalone binaries skipped migrations.** `import.meta.url` does not resolve to a disk
+path in a compiled Bun executable, so the filesystem migrator found no `_journal.json`
+and silently returned — leaving a database with no tables and crashing on first use.
+
+**Fix.** Migration SQL is inlined into `src/storage/migrations/bundle.ts` by
+`scripts/generate-migrations.py` (wired into `prebuild`), and
+`src/storage/database/migrations.ts` applies the embedded manifest per migration inside
+a transaction, idempotently.
+
+This is exactly the class of bug a clean-install test catches and a dev-machine run
+does not.
+
+## TUI startup verification
+
+| Terminal | Result |
+|---|---|
+| Windows Terminal 1.24 | PASS |
+| VS Code integrated terminal | PASS |
+| PowerShell 7 | PASS |
+
+TUI renders, stays alive, and is killable on `SIGINT`.
+
+## Not verified
+
+- Clean machine with no Bun/Node (the binary needs neither, but this was not tested on a
+  virgin Windows image).
+- macOS / Linux (no hardware).
+- Network-restricted environments.
+- Upgrade from a prior release (no prior release exists).
