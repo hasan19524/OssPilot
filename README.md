@@ -538,14 +538,14 @@ Full instructions: [`INSTALLATION.md`](docs/INSTALLATION.md).
 
 ```powershell
 # Install to the local user profile and add to PATH
-irm https://raw.githubusercontent.com/OWNER/REPO/main/scripts/install.ps1 -OutFile install.ps1
+irm https://raw.githubusercontent.com/hasan19524/OssPilot/main/scripts/install.ps1 -OutFile install.ps1
 .\install.ps1 -Url <release-asset-url>
 ```
 
 ### Build from source
 
 ```bash
-git clone <repo-url> && cd osspilot
+git clone https://github.com/hasan19524/OssPilot.git && cd OssPilot
 bun install
 bun run build          # -> dist/osspilot.exe
 ```

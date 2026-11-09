@@ -13,7 +13,7 @@
 .PARAMETER ChecksumUrl
   Optional URL for SHA256SUMS.txt.
 .EXAMPLE
-  .\install.ps1 -Url https://github.com/OWNER/REPO/releases/download/v0.1.0/osspilot-windows-x64.exe
+  .\install.ps1 -Url https://github.com/hasan19524/OssPilot/releases/download/v0.1.0/osspilot-windows-x64.exe
 #>
 param(
     [Parameter(Mandatory = $true)]

@@ -8,3 +8,6 @@ osspilot.db-*
 .smoke-*
 smoke*.ts
 coverage/
+
+audits.zip
+*.zip

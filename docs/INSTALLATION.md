@@ -16,7 +16,7 @@ No Bun, Node.js or other runtime is required to run a released binary.
 ### Option A — install script (recommended)
 
 ```powershell
-irm https://raw.githubusercontent.com/OWNER/REPO/main/scripts/install.ps1 -OutFile install.ps1
+irm https://raw.githubusercontent.com/hasan19524/OssPilot/main/scripts/install.ps1 -OutFile install.ps1
 .\install.ps1 -Url <url-of-osspilot-windows-x64.exe>
 ```
 
