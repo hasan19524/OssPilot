@@ -54,7 +54,7 @@ poster frame — the video opens in your browser's player.
 
 | 30-second intro — points and score | 50-second product explainer — real product output |
 |---|---|
-| [![OSSPilot 30-second intro: typographic beat sheet over a synthesized score](artifacts/videos/osspilot/OSSPilot_30s_Intro-poster.jpg)](https://github.com/hasan19524/OssPilot/raw/main/artifacts/videos/osspilot/OSSPilot_30s_Intro.mp4) | [![OSSPilot 50-second product explainer: discovery, research, planning, the approval gate](artifacts/videos/osspilot/OSSPilot_50s_Product_Explainer-poster.jpg)](https://github.com/hasan19524/OssPilot/raw/main/artifacts/videos/osspilot/OSSPilot_50s_Product_Explainer.mp4) |
+| [![OSSPilot 30-second intro: typographic beat sheet over a synthesized score](artifacts/videos/osspilot/OSSPilot_30s_Intro-poster.jpg)](https://github.com/hasan19524/OssPilot/blob/main/artifacts/videos/osspilot/OSSPilot_30s_Intro.mp4) | [![OSSPilot 50-second product explainer: discovery, research, planning, the approval gate](artifacts/videos/osspilot/OSSPilot_50s_Product_Explainer-poster.jpg)](https://github.com/hasan19524/OssPilot/blob/main/artifacts/videos/osspilot/OSSPilot_50s_Product_Explainer.mp4) |
 | The problem → what OSSPilot does → the guarantees: local-first, verifiable, approval-gated. No application footage. | Title cards and terminal screens of real application output: discovery, research, inspection, planning, the approval gate and status. Narration script: [`OSSPilot_Subtitles.srt`](artifacts/videos/osspilot/OSSPilot_Subtitles.srt). |
 
 Both files also live in [`artifacts/videos/osspilot/`](artifacts/videos/osspilot).
