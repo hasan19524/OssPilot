@@ -1,0 +1,30 @@
+﻿                                                                                    ┌──────────────────────────────────┐
+ PROGRESS                                                                           │                                  │
+   warning: Repository has 7543 open issues — maintainer may be overwhelmed.        │ REPOSITORY                       │
+                                                                                    │ hasan19524/OssPilot              │
+ PROGRESS                                                                           │ branch: —                        │
+   warning: Issue #1 not found in open issues — it may be closed or already         │                                  │
+ resolved.                                                                          │ ISSUE                            │
+                                                                                    │ none selected                    │
+ PROGRESS                                                                           │                                  │
+ Contribution: contrib-1794307241639-058e4a04                                       │ AGENT                            │
+                                                                                    │ IDLE                             │
+ PROGRESS                                                                           │ nvidia, openai, openrouter       │
+ [WORKSPACE] Cloning repository and creating worktree                               │                                  │
+                                                                                    │ WORKFLOW                         │
+ PROGRESS                                                                           │ stage: WORKSPACE                 │
+ Worktree: C:\Users\Hasan\.osspilot\worktrees\contrib-1794307241639-058e4a04        │                                  │
+                                                                                    │ CHANGES                          │
+ PROGRESS                                                                           │ 0 file(s)                        │
+ Branch: osspilot/contrib-1794307241639-058e4a04 (base: master)                     │                                  │
+                                                                                    │                                  │
+ PROGRESS                                                                           │                                  │
+ Coding agent: OpenCode opencode v2.2.5                                             │                                  │
+                                                                                    │                                  │
+ * working...                                                                     █ │                                  │
+ ┌────────────────────────────────────────────────────────────────────────────────┐ │                                  │
+ │                                                                                │ │                                  │
+ │   Ask OSSPilot, or /help                                                       │ │                                  │
+ └────────────────────────────────────────────────────────────────────────────────┘ │                                  │
+                                                                                    └──────────────────────────────────┘
+ session-1794300398198-c2bd78 - IDLE  - WORKSPACE - working

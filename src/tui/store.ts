@@ -65,6 +65,8 @@ export interface TuiState {
   messages: Message[]
   sessionId: string | null
   busy: boolean
+  /** Set by Ctrl+C while an operation runs; the dispatcher stops at the next safe point. */
+  cancelRequested: boolean
   agentStatus: AgentStatus | null
   pendingApproval: PendingApproval | null
   approvalResolver: ((choice: boolean) => void) | null
@@ -86,6 +88,8 @@ export interface TuiState {
   setMessages: (messages: Message[]) => void
   setSessionId: (id: string | null) => void
   setBusy: (busy: boolean) => void
+  requestCancel: () => void
+  clearCancel: () => void
   setAgentStatus: (status: AgentStatus | null) => void
   requestApproval: (approval: PendingApproval) => Promise<boolean>
   resolveApproval: (choice: "confirm" | "reject") => void
@@ -99,6 +103,7 @@ export const useTuiStore = create<TuiState>((set) => ({
   messages: [],
   sessionId: null,
   busy: false,
+  cancelRequested: false,
   agentStatus: null,
   pendingApproval: null,
   approvalResolver: null,
@@ -118,6 +123,8 @@ export const useTuiStore = create<TuiState>((set) => ({
   setMessages: (messages) => set({ messages }),
   setSessionId: (id) => set({ sessionId: id }),
   setBusy: (busy) => set({ busy }),
+  requestCancel: () => set({ cancelRequested: true }),
+  clearCancel: () => set({ cancelRequested: false }),
   setAgentStatus: (status) => set({ agentStatus: status }),
   requestApproval: (approval) =>
     new Promise<boolean>((resolve) => {

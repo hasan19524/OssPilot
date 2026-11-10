@@ -1,0 +1,30 @@
+﻿                                                                                    ┌──────────────────────────────────┐
+   /select <owner/repo[#N]>               put a repository/issue in the sidebar     │                                  │
+   /agents                                coding agent status                       │ REPOSITORY                       │
+   /status                                active contributions                      │ octocat/definitely-not-a-real-   │
+   /diff                                  show current worktree diff stat           │ repo-9f3a                        │
+   /cancel                                cancel the active contribution            │ branch: osspilot/contrib-        │
+   /history, /sessions                    list conversations                        │ 1794307574761-5119792f           │
+   /new                                   start a new conversation                  │                                  │
+   /resume <session-id>                   reopen a conversation                     │ ISSUE                            │
+ Natural language works too, e.g. "find beginner TypeScript issues",                │ #1                               │
+ "research octocat/Hello-World#1", "explain this repository".                       │ Edited README via GitHub         │
+                                                                                    │                                  │
+ you                                                                                │ AGENT                            │
+ /research octocat/definitely-not-a-real-repo-9f3a#1                                │ IDLE                             │
+                                                                                    │ nvidia, openai, openrouter       │
+ PROGRESS                                                                           │                                  │
+ Researching octocat/definitely-not-a-real-repo-9f3a#1...                           │ WORKFLOW                         │
+                                                                                    │ stage: USER_APPROVAL_PLAN        │
+ osspilot                                                                           │                                  │
+ Research on octocat/definitely-not-a-real-repo-9f3a was not found on GitHub (404)  │ CHANGES                          │
+ .                                                                                  │ 0 file(s)                        │
+ Check the owner/repository spelling and the issue number.                          │                                  │
+ Example: /research octocat/Hello-World#1                                           │                                  │
+                                                                                  ▄ │                                  │
+ ┌────────────────────────────────────────────────────────────────────────────────┐ │                                  │
+ │                                                                                │ │                                  │
+ │   Ask OSSPilot, or /help                                                       │ │                                  │
+ └────────────────────────────────────────────────────────────────────────────────┘ │                                  │
+                                                                                    └──────────────────────────────────┘
+ session-1794300398198-c2bd78 - IDLE  - USER_APPROVAL_PLAN

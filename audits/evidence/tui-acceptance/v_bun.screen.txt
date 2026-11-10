@@ -1,0 +1,30 @@
+﻿                                                                                    ┌──────────────────────────────────┐
+ /help                                                                              │                                  │
+                                                                                    │ REPOSITORY                       │
+ osspilot                                                                           │ octocat/Hello-World              │
+ Commands:                                                                          │ branch: osspilot/contrib-        │
+   /discover <query> [--language <lang>]  find repositories on GitHub               │ 1794307574761-5119792f           │
+   /issues [owner/repo] [--beginner-friendly]  browse open issues (defaults to      │                                  │
+ this repository)                                                                   │ ISSUE                            │
+   /research <owner/repo|owner/repo#N>    full intelligence report                  │ #1                               │
+   /explain [owner/repo]                  inspect and explain a codebase            │ Edited README via GitHub         │
+   /plan <owner/repo#N>                   generate a contribution plan              │                                  │
+   /contribute <owner/repo#N>             run the full workflow with approval       │ AGENT                            │
+ gates                                                                              │ IDLE                             │
+   /select <owner/repo[#N]>               put a repository/issue in the sidebar     │ nvidia, openai, openrouter       │
+   /agents                                coding agent status                       │                                  │
+   /status                                active contributions                      │ WORKFLOW                         │
+   /diff                                  show current worktree diff stat           │ stage: USER_APPROVAL_PLAN        │
+   /cancel                                cancel the active contribution            │                                  │
+   /history, /sessions                    list conversations                        │ CHANGES                          │
+   /new                                   start a new conversation                  │ 0 file(s)                        │
+   /resume <session-id>                   reopen a conversation                     │                                  │
+ Natural language works too, e.g. "find beginner TypeScript issues",                │                                  │
+ "research octocat/Hello-World#1", "explain this repository".                       │                                  │
+                                                                                  ▄ │                                  │
+ ┌────────────────────────────────────────────────────────────────────────────────┐ │                                  │
+ │                                                                                │ │                                  │
+ │   Ask OSSPilot, or /help                                                       │ │                                  │
+ └────────────────────────────────────────────────────────────────────────────────┘ │                                  │
+                                                                                    └──────────────────────────────────┘
+ session-1794300398198-c2bd78 - IDLE  - USER_APPROVAL_PLAN

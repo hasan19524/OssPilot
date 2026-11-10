@@ -3,7 +3,10 @@ import { createRoot } from "@opentui/react"
 import { App } from "./app/App"
 
 export async function launchTui(): Promise<void> {
-  const renderer = await createCliRenderer()
+  // exitOnCtrlC: false — Ctrl+C is handled by the app itself: while a task is
+  // running it requests a cooperative cancel; when idle it quits. The renderer
+  // must not destroy itself before that decision runs.
+  const renderer = await createCliRenderer({ exitOnCtrlC: false })
   const root = createRoot(renderer)
   root.render(<App />)
 

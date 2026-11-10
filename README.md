@@ -569,38 +569,44 @@ installs anything without your action.
 osspilot
 ```
 
-**Layout.** Left: contribution stages. Centre: agent activity and conversation.
-Right: repository, issue, agent, workflow and context. Bottom: prompt composer and
-status bar. Expandable panels for terminal output, diff, tests, logs and changed files.
+**Layout.** Centre: the conversation — your messages, OSSPilot's replies,
+GitHub results and live workflow progress. Right: repository, issue, agent,
+workflow stage and changed-file count. Bottom: prompt composer and a status bar
+with the session, agent state and stage. An approval dialog overlays the
+transcript whenever the workflow needs a decision.
 
 **Keyboard shortcuts.**
 
 | Key | Action |
 |---|---|
-| `Ctrl+C` | Safe interrupt — records intent, does not kill mid-operation |
-| `Ctrl+P` | Command palette |
-| `Ctrl+J` | Toggle terminal panel |
-| `Ctrl+D` | Toggle git diff panel |
-| `Tab` | Move between panels |
-| `Esc` | Close dialogs / quit |
-| `y` / `n` | Confirm or reject an approval gate |
+| `Ctrl+C` | Interrupt — while a task runs it requests a cooperative cancel (stops at the next safe point); when idle it quits |
+| `Ctrl+P` | Coding-agent status view |
+| `Esc` | Back from a sub-view; quit from the conversation |
+| `Enter` | Submit the composer; return from a sub-view |
+| `y` / `n` | Confirm or reject an approval gate (all other keys are ignored while a gate is open) |
 
-**Composer commands.**
+**Composer commands.** The authoritative list is `/help` inside the app:
 
 | Command | Action |
 |---|---|
 | `/help` | List commands |
 | `/discover <query> [--language <lang>]` | Search repositories with their open issues |
-| `/issues owner/repo` | Browse open issues |
+| `/issues [owner/repo] [--beginner-friendly]` | Browse open issues; beginner flag filters by label |
 | `/research owner/repo#N` | Full research report |
+| `/explain [owner/repo]` | Inspect and explain a codebase |
 | `/plan owner/repo#N` | Contribution plan preview |
 | `/contribute owner/repo#N` | Run the full workflow with approval gates |
+| `/select owner/repo[#N]` | Put a repository/issue in the sidebar |
 | `/diff` | Real diff stat and changed files |
 | `/agents` | Coding agent status |
 | `/status`, `/cancel` | Manage the active contribution |
+| `/history`, `/sessions`, `/new`, `/resume <id>` | Conversation history |
 
-Natural language works: *"find beginner TypeScript issues"*, *"research
-prettier/prettier#20408"*. Unmapped input is refused rather than fabricated.
+Natural language works without a model call: *"find beginner TypeScript
+issues"*, *"find beginner-friendly issues in this repository"*, *"research
+prettier/prettier#20408"*, *"explain this repository"*, *"help me plan a
+contribution"*, plus greetings and thanks. Unmapped input is refused with the
+list of supported forms rather than fabricated.
 
 ### CLI
 

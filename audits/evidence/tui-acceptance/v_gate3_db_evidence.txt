@@ -1,0 +1,41 @@
+﻿=== contribution record ===
+{
+ "id": "contrib-1794307574761-5119792f",
+ "repo_owner": "octocat",
+ "repo_name": "Hello-World",
+ "issue_number": 1,
+ "issue_title": "Edited README via GitHub",
+ "stage": "USER_APPROVAL_PLAN",
+ "agent_id": "opencode",
+ "worktree_path": "C:\\Users\\Hasan\\.osspilot\\worktrees\\contrib-1794307574761-5119792f",
+ "branch_name": "osspilot/contrib-1794307574761-5119792f",
+ "pr_number": null,
+ "pr_url": null,
+ "paused_at": 1794307907996,
+ "created_at": 1794307574761,
+ "updated_at": 1794307907996
+}
+=== stage events (chronological) ===
+1794307574762  [DISCOVER] system/stage.entered: Contribution created
+1794307574765  [ISSUE_ANALYSIS] system/stage.entered: Issue fetched
+1794307575203  [WORKSPACE_CREATION] system/stage.entered: Worktree: C:\Users\Hasan\.osspilot\worktrees\contrib-1794307574761-5119792f
+1794307575337  [AGENT_INVESTIGATION] system/stage.entered: Investigation started
+1794307879593  [CONTRIBUTION_PLAN] system/stage.entered: Investigation complete
+1794307879595  [USER_APPROVAL_PLAN] system/stage.entered: Awaiting plan approval
+1794307907996  [USER_APPROVAL_PLAN] user/paused: Plan not approved
+=== transcript rows 36-37 (the /contribute turn) ===
+--- 36 user ---
+/contribute octocat/Hello-World#1
+--- 37 assistant ---
+Repository: octocat/Hello-World  Issue: #1
+Issue: Edited README via GitHub
+  warning: Repository has 7543 open issues ΓÇö maintainer may be overwhelmed.
+  warning: Issue #1 not found in open issues ΓÇö it may be closed or already resolved.
+Contribution: contrib-1794307574761-5119792f
+Worktree: C:\Users\Hasan\.osspilot\worktrees\contrib-1794307574761-5119792f
+Branch: osspilot/contrib-1794307574761-5119792f (base: master)
+Coding agent: OpenCode opencode v2.2.5
+Contribution contrib-1794307574761-5119792f finished at stage PAUSED.
+No PR was created (not approved or skipped).
+=== pull_requests for this contribution ===
+[]

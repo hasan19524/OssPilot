@@ -1,0 +1,30 @@
+﻿                                                                                    ┌──────────────────────────────────┐
+ PROGRESS                                                                           │                                  │
+   warning: Repository has 7543 open issues — maintainer may be overwhelmed.        │ REPOSITORY                       │
+                                                                                    │ octocat/Hello-World              │
+ PROGRESS                                                                           │ branch: osspilot/contrib-        │
+   warning: Issue #1 not found in open issues — it may be closed or already         │ 1794307241639-058e4a04           │
+ resolved.                                                                          │                                  │
+                                                                                    │ ISSUE                            │
+ PROGRESS                                                                           │ #1                               │
+ Contribution: contrib-1794307388561-d27b9ba3                                       │ Edited README via GitHub         │
+                                                                                    │                                  │
+ PROGRESS                                                                           │ AGENT                            │
+ [WORKSPACE] Cloning repository and creating worktree                               │ IDLE                             │
+                                                                                    │ nvidia, openai, openrouter       │
+ PROGRESS                                                                           │                                  │
+ Worktree: C:\Users\Hasan\.osspilot\worktrees\contrib-1794307388561-d27b9ba3        │ WORKFLOW                         │
+                                                                                    │ stage: WORKSPACE                 │
+ PROGRESS                                                                           │                                  │
+ Branch: osspilot/contrib-1794307388561-d27b9ba3 (base: master)                     │ CHANGES                          │
+                                                                                    │ 0 file(s)                        │
+ PROGRESS                                                                           │                                  │
+ Coding agent: OpenCode opencode v2.2.5                                             │                                  │
+                                                                                    │                                  │
+ * working...                                                                     █ │                                  │
+ ┌────────────────────────────────────────────────────────────────────────────────┐ │                                  │
+ │                                                                                │ │                                  │
+ │   Ask OSSPilot, or /help                                                       │ │                                  │
+ └────────────────────────────────────────────────────────────────────────────────┘ │                                  │
+                                                                                    └──────────────────────────────────┘
+ session-1794300398198-c2bd78 - IDLE  - WORKSPACE - working

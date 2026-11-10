@@ -1,0 +1,33 @@
+﻿=== SCENARIO: s10_agents ===
+child exited after input: False
+--- SCREEN: s10_agents ---
+ 1|                                                                                     ┌──────────────────────────────────┐
+ 2|  osspilot                                                                         █ │                                  │
+ 3|  Welcome to OSSPilot. Ask me to find an issue, research a repository, plan a        │ REPOSITORY                       │
+ 4|  contribution, or explain a codebase. Type /help for commands.                      │ hasan19524/OssPilot              │
+ 5|                                                                                     │ branch: —                        │
+ 6|  osspilot                                                                           │                                  │
+ 7|  I could not map that to an action I can actually perform.                          │ ISSUE                            │
+ 8|  I will not fabricate a result. Try /help, or use a form like:                      │ none selected                    │
+ 9|    /research owner/repository#123                                                   │                                  │
+10|    /discover typescript                                                             │ AGENT                            │
+11|                                                                                     │ IDLE                             │
+12|  osspilot                                                                           │ nvidia, openai, openrouter       │
+13|  I could not map that to an action I can actually perform.                          │                                  │
+14|  I will not fabricate a result. Try /help, or use a form like:                      │ WORKFLOW                         │
+15|    /research owner/repository#123                                                   │ stage: DISCOVER                  │
+16|    /discover typescript                                                             │                                  │
+17|                                                                                     │ CHANGES                          │
+18|  you                                                                                │ 0 file(s)                        │
+19|  hi                                                                                 │                                  │
+20|                                                                                     │                                  │
+21|  osspilot                                                                           │                                  │
+22|  Hello — I'm OSSPilot, a terminal-native agent for open-source contributions.       │                                  │
+23|                                                                                     │                                  │
+24|  I can run these workflows for you:                                                 │                                  │
+25|  ┌────────────────────────────────────────────────────────────────────────────────┐ │                                  │
+26|  │                                                                                │ │                                  │
+27|  │   Ask OSSPilot, or /help                                                       │ │                                  │
+28|  └────────────────────────────────────────────────────────────────────────────────┘ │                                  │
+29|                                                                                     └──────────────────────────────────┘
+30|  session-1794300398198-c2bd78 - IDLE  - DISCOVER

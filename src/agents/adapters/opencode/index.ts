@@ -79,6 +79,27 @@ export class OpenCodeAdapter implements AgentAdapter {
     return { available: true }
   }
 
+  /**
+   * Read the provider configuration WITHOUT printing any secret.
+   *
+   * Only the *names* of stored credentials and a configured model id are read;
+   * token material is never returned, logged or displayed. When the files are
+   * absent the result says so instead of guessing.
+   */
+  private async detectProviderState(): Promise<{
+    provider: string | null
+    model: string | null
+    authenticated: boolean
+  }> {
+    const { detectProviderState } = await import("./provider-config")
+    const state = detectProviderState()
+    return {
+      provider: state.providers.length > 0 ? state.providers.join(", ") : null,
+      model: state.model,
+      authenticated: state.authenticated,
+    }
+  }
+
   async getStatusReport(options: { worktreePath?: string } = {}): Promise<AgentStatusReport> {
     const install = await this.detectInstallation()
     if (!install.installed) {
@@ -96,6 +117,15 @@ export class OpenCodeAdapter implements AgentAdapter {
       }
     }
 
+    const providerState = await this.detectProviderState()
+    const provider = this.providerId ?? providerState.provider
+    const model = this.modelId ?? providerState.model
+    const authLimitation = providerState.authenticated
+      ? []
+      : [
+          "OpenCode has no authenticated provider — run `opencode auth login` before starting a contribution.",
+        ]
+
     if (options.worktreePath) {
       const existing = this.servers.get(options.worktreePath)
       if (!existing) {
@@ -103,13 +133,13 @@ export class OpenCodeAdapter implements AgentAdapter {
           installed: true,
           version: install.version ?? null,
           executablePath: install.path ?? null,
-          state: "IDLE",
-          provider: this.providerId,
-          model: this.modelId,
+          state: providerState.authenticated ? "IDLE" : "NOT_AUTHENTICATED",
+          provider,
+          model,
           activeSessionId: null,
           worktreePath: options.worktreePath,
           lastError: null,
-          limitations: install.limitations,
+          limitations: [...install.limitations, ...authLimitation],
         }
       }
       const reachable = await this.pingServer(existing)
@@ -118,26 +148,34 @@ export class OpenCodeAdapter implements AgentAdapter {
         version: install.version ?? null,
         executablePath: install.path ?? null,
         state: reachable ? "CONNECTED" : "DISCONNECTED",
-        provider: this.providerId,
-        model: this.modelId,
+        provider,
+        model,
         activeSessionId: this.activeSessionIds.get(options.worktreePath) ?? null,
         worktreePath: options.worktreePath,
         lastError: reachable ? null : "Server process is alive but not responding",
-        limitations: install.limitations,
+        limitations: [...install.limitations, ...authLimitation],
       }
     }
 
+    // No worktree requested: report a live session if one exists instead of
+    // claiming IDLE while the agent is actually working.
+    const activeSessions = Array.from(this.activeSessionIds.entries())
+    const firstActive = activeSessions[0]
     return {
       installed: true,
       version: install.version ?? null,
       executablePath: install.path ?? null,
-      state: "IDLE",
-      provider: this.providerId,
-      model: this.modelId,
-      activeSessionId: null,
-      worktreePath: null,
+      state: providerState.authenticated
+        ? firstActive
+          ? "CONNECTED"
+          : "IDLE"
+        : "NOT_AUTHENTICATED",
+      provider,
+      model,
+      activeSessionId: firstActive?.[1] ?? null,
+      worktreePath: firstActive?.[0] ?? null,
       lastError: null,
-      limitations: install.limitations,
+      limitations: [...install.limitations, ...authLimitation],
     }
   }
 
@@ -266,9 +304,9 @@ export class OpenCodeAdapter implements AgentAdapter {
 
       const deadline = Date.now() + 300000
       let lastText = ""
+      let stablePolls = 0
       const seenMessageIds = new Set<string>()
       const seenToolIds = new Set<string>()
-      let hasToolActivity = false
 
       while (Date.now() < deadline) {
         await sleep(2000)
@@ -300,7 +338,6 @@ export class OpenCodeAdapter implements AgentAdapter {
               const toolId = String(record.id ?? `${messageId}-${seenToolIds.size}`)
               if (seenToolIds.has(toolId)) continue
               seenToolIds.add(toolId)
-              hasToolActivity = true
               const toolName = String(record.name ?? "tool")
               if (process.env.OSSPILOT_DEBUG_AGENT) {
                 process.stderr.write(
@@ -311,14 +348,8 @@ export class OpenCodeAdapter implements AgentAdapter {
               const state = record.state as Record<string, unknown> | undefined
               const filePath = extractAffectedPath(state)
               if (filePath) yield { type: "file.changed", path: filePath }
-            } else if (partType === "text" && typeof record.text === "string") {
-              const accumulated = buildAssistantText(content)
-              if (accumulated && accumulated !== lastText) {
-                const delta = accumulated.slice(lastText.length)
-                if (delta) yield { type: "message.delta", content: delta }
-                lastText = accumulated
-              }
             }
+            // Text parts are aggregated from the full message list below.
           }
 
           const structured = (raw as { info?: { structured?: unknown } }).info?.structured
@@ -330,29 +361,46 @@ export class OpenCodeAdapter implements AgentAdapter {
           }
         }
 
-        // A stable response after real tool activity finishes the turn.
-        if (hasToolActivity && lastText) {
-          await sleep(2500)
-          const recheck = await fetch(`${server.baseUrl}/session/${sid}/message`, {
-            headers: this.authHeaders(server),
-          })
-          if (recheck.ok) {
-            const rjson = (await recheck.json()) as { data?: Array<Record<string, unknown>> }
-            const rMessages = Array.isArray(rjson?.data) ? rjson.data : []
-            const rText = rMessages
-              .filter((m) => String(m.type ?? "") === "assistant")
-              .map((m) => buildAssistantText(Array.isArray(m.content) ? m.content : []))
-              .join("")
-            if (rText === lastText || rText === "") {
-              yield { type: "session.completed" }
-              return
-            }
-            if (rText && rText !== lastText) {
-              const delta = rText.slice(lastText.length)
-              if (delta) yield { type: "message.delta", content: delta }
-              lastText = rText
+        // Aggregate the full assistant text so partial first sightings cannot
+        // truncate the final answer, then emit only the new delta.
+        const fullText = messages
+          .filter((m) => String(m.type ?? "") === "assistant")
+          .map((m) => buildAssistantText(Array.isArray(m.content) ? m.content : []))
+          .filter((t) => t.length > 0)
+          .join("\n")
+        if (fullText && fullText !== lastText) {
+          const delta = fullText.startsWith(lastText) ? fullText.slice(lastText.length) : fullText
+          if (delta) yield { type: "message.delta", content: delta }
+          lastText = fullText
+          stablePolls = 0
+        } else if (fullText) {
+          stablePolls++
+        }
+
+        // A tool that is still executing keeps the turn open even when the
+        // text has been quiet for a few polls.
+        let anyToolRunning = false
+        for (const raw of messages) {
+          if (String(raw.type ?? "") !== "assistant") continue
+          const parts = Array.isArray(raw.content) ? raw.content : []
+          for (const part of parts) {
+            if (!part || typeof part !== "object") continue
+            const record = part as Record<string, unknown>
+            if (String(record.type ?? "") !== "tool") continue
+            const state = record.state as Record<string, unknown> | undefined
+            const status = String(state?.status ?? state?.state ?? "").toLowerCase()
+            if (["pending", "running", "in_progress", "started"].includes(status)) {
+              anyToolRunning = true
             }
           }
+        }
+
+        // Stable answer, nothing running => the turn is finished. This covers
+        // BOTH plain answers (no tools at all) and post-tool summaries; the
+        // hard deadline above remains the safety net for a stalled turn.
+        if (lastText && stablePolls >= 2 && !anyToolRunning) {
+          yield { type: "session.completed" }
+          return
         }
       }
 

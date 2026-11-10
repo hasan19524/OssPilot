@@ -1,0 +1,30 @@
+﻿                                                                                    ┌──────────────────────────────────┐
+ Searching GitHub for "typescript" (language: typescript)...                        │                                  │
+                                                                                    │ REPOSITORY                       │
+ PROGRESS                                                                           │ hasan19524/OssPilot              │
+   inspecting morluto/rea...                                                        │ branch: —                        │
+                                                                                    │                                  │
+ PROGRESS                                                                           │ ISSUE                            │
+   inspecting n8n-io/n8n...                                                         │ none selected                    │
+                                                                                    │                                  │
+ PROGRESS                                                                           │ AGENT                            │
+   inspecting microsoft/vscode...                                                   │ IDLE                             │
+                                                                                    │ nvidia, openai, openrouter       │
+ PROGRESS                                                                           │                                  │
+   inspecting immich-app/immich...                                                  │ WORKFLOW                         │
+                                                                                    │ stage: DISCOVER                  │
+ PROGRESS                                                                           │                                  │
+   inspecting angular/angular...                                                    │ CHANGES                          │
+                                                                                    │ 0 file(s)                        │
+ SYSTEM                                                                             │                                  │
+ Cancel requested — the running operation stops at its next safe point.             │                                  │
+                                                                                    │                                  │
+ SYSTEM                                                                             │                                  │
+ Cancelled.                                                                         │                                  │
+                                                                                  █ │                                  │
+ ┌────────────────────────────────────────────────────────────────────────────────┐ │                                  │
+ │                                                                                │ │                                  │
+ │   Ask OSSPilot, or /help                                                       │ │                                  │
+ └────────────────────────────────────────────────────────────────────────────────┘ │                                  │
+                                                                                    └──────────────────────────────────┘
+ session-1794300398198-c2bd78 - IDLE  - DISCOVER

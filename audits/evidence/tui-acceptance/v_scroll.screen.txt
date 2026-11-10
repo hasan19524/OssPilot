@@ -1,0 +1,30 @@
+﻿                                                                                    ┌──────────────────────────────────┐
+ /help                                                                              │                                  │
+                                                                                    │ REPOSITORY                       │
+ osspilot                                                                           │ hasan19524/OssPilot              │
+ Commands:                                                                          │ branch: —                        │
+   /discover <query> [--language <lang>]  find repositories on GitHub               │                                  │
+   /issues [owner/repo]                   browse open issues (defaults to this      │ ISSUE                            │
+ repository)                                                                        │ none selected                    │
+   /research <owner/repo|owner/repo#N>    full intelligence report                  │                                  │
+   /explain [owner/repo]                  inspect and explain a codebase            │ AGENT                            │
+   /plan <owner/repo#N>                   generate a contribution plan              │ IDLE                             │
+   /contribute <owner/repo#N>             run the full workflow with approval       │ nvidia, openai, openrouter       │
+ gates                                                                              │                                  │
+   /select <owner/repo[#N]>               put a repository/issue in the sidebar     │ WORKFLOW                         │
+   /agents                                coding agent status                       │ stage: DISCOVER                  │
+   /status                                active contributions                      │                                  │
+   /diff                                  show current worktree diff stat           │ CHANGES                          │
+   /cancel                                cancel the active contribution            │ 0 file(s)                        │
+   /history, /sessions                    list conversations                        │                                  │
+   /new                                   start a new conversation                  │                                  │
+   /resume <session-id>                   reopen a conversation                     │                                  │
+ Natural language works too, e.g. "find beginner TypeScript issues",                │                                  │
+ "research octocat/Hello-World#1", "explain this repository".                       │                                  │
+                                                                                  █ │                                  │
+ ┌────────────────────────────────────────────────────────────────────────────────┐ │                                  │
+ │                                                                                │ │                                  │
+ │   Ask OSSPilot, or /help                                                       │ │                                  │
+ └────────────────────────────────────────────────────────────────────────────────┘ │                                  │
+                                                                                    └──────────────────────────────────┘
+ session-1794300398198-c2bd78 - IDLE  - DISCOVER
