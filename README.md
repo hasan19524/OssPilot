@@ -49,14 +49,15 @@ required to run OSSPilot itself.
 
 ## Watch
 
-| | |
-|---|---|
-| **30-second intro** — points and score, no product footage | **50-second product explainer** — real product output through the whole workflow |
-| <video src="artifacts/videos/osspilot/OSSPilot_30s_Intro.mp4" poster="artifacts/videos/osspilot/OSSPilot_30s_Intro-poster.jpg" width="100%" controls preload="metadata" playsinline></video> | <video src="artifacts/videos/osspilot/OSSPilot_50s_Product_Explainer.mp4" poster="artifacts/videos/osspilot/OSSPilot_50s_Product_Explainer-poster.jpg" width="100%" controls preload="metadata" playsinline></video> |
-| Typographic beat sheet over a synthesized score: the problem → what OSSPilot does → the guarantees (local-first, verifiable, approval-gated). | Title cards and terminal screens showing real application output: discovery, research, inspection, planning, the approval gate and status. Narration: `artifacts/videos/osspilot/OSSPilot_Subtitles.srt`. |
+GitHub does not render inline video in README files, so each clip is a clickable
+poster frame — the video opens in your browser's player.
 
-> If the players do not appear, your viewer has media disabled — the same files
-> are in [`artifacts/videos/osspilot/`](artifacts/videos/osspilot).
+| 30-second intro — points and score | 50-second product explainer — real product output |
+|---|---|
+| [![OSSPilot 30-second intro: typographic beat sheet over a synthesized score](artifacts/videos/osspilot/OSSPilot_30s_Intro-poster.jpg)](https://github.com/hasan19524/OssPilot/raw/main/artifacts/videos/osspilot/OSSPilot_30s_Intro.mp4) | [![OSSPilot 50-second product explainer: discovery, research, planning, the approval gate](artifacts/videos/osspilot/OSSPilot_50s_Product_Explainer-poster.jpg)](https://github.com/hasan19524/OssPilot/raw/main/artifacts/videos/osspilot/OSSPilot_50s_Product_Explainer.mp4) |
+| The problem → what OSSPilot does → the guarantees: local-first, verifiable, approval-gated. No application footage. | Title cards and terminal screens of real application output: discovery, research, inspection, planning, the approval gate and status. Narration script: [`OSSPilot_Subtitles.srt`](artifacts/videos/osspilot/OSSPilot_Subtitles.srt). |
+
+Both files also live in [`artifacts/videos/osspilot/`](artifacts/videos/osspilot).
 
 ---
 
