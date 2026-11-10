@@ -39,7 +39,7 @@ Both are read-only and never change configuration.
 
 **Cause.** No provider is configured, or the provider returned an error.
 
-**Fix.** `osspilot setup` and add a key (see `PROVIDERS.md`). This is a graceful
+**Fix.** `osspilot setup` and add a key (see `providers.md`). This is a graceful
 degradation, not a bug: GitHub-only features are designed to work without an LLM.
 
 ## The TUI looks broken
@@ -48,7 +48,9 @@ degradation, not a bug: GitHub-only features are designed to work without an LLM
 - Resize the terminal.
 - Use Windows Terminal rather than the legacy console host.
 - Minimum usable size is roughly 80x24.
-- Kill and restart `osspilot`; state is read from SQLite every 3 seconds.
+- Kill and restart `osspilot`; the sidebar is hydrated from records whose
+  worktree still exists and that had recent activity, and commands re-read the
+  database on demand (`/status`).
 
 ## A contribution is stuck
 

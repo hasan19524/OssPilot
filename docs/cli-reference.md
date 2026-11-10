@@ -83,7 +83,7 @@ Show or edit configuration.
 
 ## Environment variables
 
-See `docs/PROVIDERS.md` and `docs/SETUP.md`.
+See `providers.md` and `configuration.md`.
 
 ## Exit codes
 

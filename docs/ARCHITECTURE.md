@@ -1,7 +1,7 @@
 # Architecture
 
-See `OSSPILOT_ARCHITECTURE_DOCUMENTATION.md` for the diagrams and
-`docs/OPEN_SOURCE_CONTRIBUTION_STANDARDS.md` for the research hierarchy.
+See [`../audits/OSSPILOT_ARCHITECTURE_DOCUMENTATION.md`](../audits/OSSPILOT_ARCHITECTURE_DOCUMENTATION.md)
+for the diagrams and `contribution-standards.md` for the research hierarchy.
 
 ## Module map
 
@@ -25,9 +25,11 @@ src/
 │       ├── agents.ts        agent status
 │       └── config.ts        configuration and auth
 ├── tui/                     OpenTUI React interface
-│   ├── launch.tsx           boots the renderer
-│   ├── app/App.tsx          layout, panels, approval dialog
-│   ├── dispatcher.ts        routes composer input to services
+│   ├── launch.tsx           boots the renderer (exitOnCtrlC disabled)
+│   ├── app/App.tsx          layout, views, composer, approval dialog
+│   ├── intent.ts            deterministic natural-language routing (no LLM)
+│   ├── dispatcher.ts        routes composer input to services, returns
+│   │                        structured results (output/context/view/approval)
 │   └── store.ts             UI state and the approval bridge
 ├── core/                    application services
 │   ├── contribution-runner.ts  THE workflow (CLI and TUI both call this)
@@ -104,7 +106,7 @@ Terminal: `CANCELLED`, `FAILED`.
 
 ## Decisions
 
-Recorded in the README and in `docs/OPEN_SOURCE_CONTRIBUTION_STANDARDS.md`:
+Recorded in the README and in `contribution-standards.md`:
 terminal-native, TypeScript on Bun, SQLite local-first, OpenCode first behind an
 adapter, BharatCode first behind a provider registry, Octokit over GitHub CLI, Git via
 controlled processes, state-driven workflow, worktrees for isolation, verification

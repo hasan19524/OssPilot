@@ -17,7 +17,7 @@ bun run test
 bun run test:coverage
 bun run build
 bash scripts/verify-install.sh dist/osspilot.exe    # POSIX
-# or, on Windows, the manual clean HOME test (see INSTALLATION.md)
+# or, on Windows, the manual clean HOME test (see installation.md)
 ```
 
 ## Local build
@@ -50,7 +50,7 @@ Upload to a release manually or extend the workflow with a release-publishing st
 3. Download all three artifacts and `SHA256SUMS.txt`.
 4. Verify each checksum locally.
 5. Create a GitHub release with generated notes and attach the artifacts.
-6. Update the install script URL in `README.md` / `INSTALLATION.md`.
+6. Update the install script URL in `README.md` / `installation.md`.
 7. Smoke test the Windows binary from a clean `OSSPILOT_HOME`.
 
 ## Signing

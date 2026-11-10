@@ -18,6 +18,9 @@ bun run test         # Vitest tests
 bun run build        # Production build
 ```
 
+See [`docs/development.md`](docs/development.md) for the module map, the
+headless TUI test harness and the release process.
+
 ## Guidelines
 
 - Follow existing code style (Biome handles formatting)

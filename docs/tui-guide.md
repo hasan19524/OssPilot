@@ -142,7 +142,7 @@ restarting the application. `osspilot doctor` verifies the environment
 
 Verified: Windows Terminal 1.24, VS Code integrated terminal, PowerShell 7,
 plus headless pseudo-console runs of the compiled `dist/osspilot.exe` (see
-`OSSPILOT_FUNCTIONAL_ACCEPTANCE_MATRIX.md`).
+[`../verification/acceptance-matrix.md`](../verification/acceptance-matrix.md)).
 
 Behaviour in other terminals depends on their Unicode and colour support. If you see
 layout breakage:
