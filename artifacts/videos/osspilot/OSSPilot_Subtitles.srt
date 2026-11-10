@@ -1,0 +1,28 @@
+1
+00:00:00,000 --> 00:00:06,000
+Open source is full of opportunities. But finding the right issue, understanding unfamiliar codebases, and making meaningful contributions takes time.
+
+2
+00:00:06,000 --> 00:00:12,000
+Meet OSSPilot - your AI-powered, local-first open-source contribution agent.
+
+3
+00:00:12,000 --> 00:00:21,000
+Connected through GitHub's Octokit API, OSSPilot discovers repositories, analyzes issues, inspects codebases, and identifies meaningful contribution opportunities.
+
+4
+00:00:21,000 --> 00:00:29,000
+Built with TypeScript, Bun, OpenTUI and SQLite, it combines explainable repository intelligence with an extensible AI-provider architecture.
+
+5
+00:00:29,000 --> 00:00:39,000
+After human approval, OSSPilot creates an isolated Git worktree and delegates implementation to OpenCode using your configured AI provider.
+
+6
+00:00:39,000 --> 00:00:46,000
+It then independently reviews the changes, runs verification, and prepares your contribution for review.
+
+7
+00:00:46,000 --> 00:00:49,000
+OSSPilot. Discover. Understand. Contribute.
+github.com/hasan19524/OssPilot
